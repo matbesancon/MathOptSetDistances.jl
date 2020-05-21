@@ -3,6 +3,10 @@ uuid = "3b969827-a86c-476c-9527-bb6f1a8fbad5"
 authors = ["Mathieu Besançon"]
 version = "0.1.0"
 
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+
 [compat]
 julia = "1"
 
