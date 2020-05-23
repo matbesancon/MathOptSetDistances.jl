@@ -24,13 +24,15 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.No
     return LinearAlgebra.norm2(ifelse(vi > 0, vi, zero(vi)) for vi in v)
 end
 
-distance_to_set(::DefaultDistance, v::Real, s::MOI.LessThan) = max(v - s.upper, zero(v))
-distance_to_set(::DefaultDistance, v::Real, s::MOI.GreaterThan) = max(s.lower - v, zero(v))
-distance_to_set(::DefaultDistance, v::Real, s::MOI.EqualTo) = abs(v - s.value)
+distance_to_set(::EpigraphViolationDistance, v::Real, s::MOI.LessThan) = max(v - s.upper, zero(v))
+distance_to_set(::EpigraphViolationDistance, v::Real, s::MOI.GreaterThan) = max(s.lower - v, zero(v))
+distance_to_set(::EpigraphViolationDistance, v::Real, s::MOI.EqualTo) = abs(v - s.value)
+
+distance_to_set(::DefaultDistance, v, s::Union{MOI.LessThan, MOI.GreaterThan, MOI.EqualTo}) = distance_to_set(EpigraphViolationDistance(), v, s)
 
 distance_to_set(::DefaultDistance, v::T, s::MOI.Interval) where {T <: Real} = max(s.lower - v, v - s.upper, zero(T))
 
-function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.NormInfinityCone)
+function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.NormInfinityCone)
     _check_dimension(v, s)
     t = v[1]
     xs = v[2:end]
@@ -38,7 +40,7 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.No
     return max(result, zero(result))
 end
 
-function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.NormOneCone)
+function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.NormOneCone)
     _check_dimension(v, s)
     t = v[1]
     xs = v[2:end]
@@ -46,12 +48,16 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.No
     return max(result, zero(result))
 end
 
-function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.SecondOrderCone)
+function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.SecondOrderCone)
     _check_dimension(v, s)
     t = v[1]
     xs = v[2:end]
     result = LinearAlgebra.norm2(xs) - t
     return max(result, zero(result))
+end
+
+function distance_to_set(::DefaultDistance, v, s::Union{MOI.NormInfinityCone, MOI.NormOneCone, MOI.SecondOrderCone})
+    return distance_to_set(EpigraphViolationDistance(), v, s)
 end
 
 function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.RotatedSecondOrderCone)
@@ -115,9 +121,7 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.Po
         )
     end
     result = abs(z) - x^e * y^(1-e)
-    return LinearAlgebra.norm2(
-        max(result, zero(result))
-    )
+    return max(result, zero(result))
 end
 
 function distance_to_set(::DefaultDistance, vs::AbstractVector{<:Real}, s::MOI.DualPowerCone)
@@ -147,7 +151,7 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, set::MOI.
     ))
 end
 
-function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.NormSpectralCone)
+function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.NormSpectralCone)
     _check_dimension(v, s)
     t = v[1]
     m = reshape(v[2:end], (s.row_dim, s.column_dim))
@@ -156,13 +160,17 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.No
     return max(result, zero(result))
 end
 
-function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.NormNuclearCone)
+function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.NormNuclearCone)
     _check_dimension(v, s)
     t = v[1]
     m = reshape(v[2:end], (s.row_dim, s.column_dim))
     s1 = sum(LinearAlgebra.svd(m).S)
     result = s1 - t
     return max(result, zero(result))
+end
+
+function distance_to_set(::DefaultDistance, v, s::Union{MOI.NormSpectralCone, MOI.NormNuclearCone})
+    return distance_to_set(EpigraphViolationDistance(), v, s)
 end
 
 function distance_to_set(::DefaultDistance, v::T, ::MOI.ZeroOne) where {T <: Real}
@@ -177,7 +185,7 @@ end
 function distance_to_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.SOS1) where {T <: Real}
     _check_dimension(v, s)
     _, i = findmax(abs.(v))
-    return LinearAlgebra.norm2([v[j] for j = eachindex(v) if j != i])
+    return LinearAlgebra.norm2([v[j] for j in eachindex(v) if j != i])
 end
 
 # takes in input [z, f(x)]
