@@ -10,9 +10,17 @@ abstract type AbstractDistance end
 """
     DefaultDistance
 
-Default distance function, uses the Euclidean distance.
+Default distance function, implemented for all sets.
 """
 struct DefaultDistance <: AbstractDistance end
+
+"""
+    EpigraphViolationDistance
+
+Distance used when `v ∈ s` can be expressed as a single scalar function `f(v) ≤ 0`.
+The distance is expressed as `max(f(v), 0)`.
+"""
+struct EpigraphViolationDistance <: AbstractDistance end
 
 """
     distance_to_set(distance_definition, v, s)
