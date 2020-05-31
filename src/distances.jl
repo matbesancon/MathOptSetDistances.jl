@@ -38,11 +38,7 @@ struct EpigraphViolationDistance <: AbstractDistance end
 """
     NormedEpigraphDistance{p}
 
-Distance used when `v ∈ s` can be expressed as a several functions `f_i(v) ≤ 0 ∀ i ∈ I`.
-The distance is expressed as `norm([max(f_i(v), 0) ∀ i ∈ I], n)` with `p` a norm value (2, 1, Inf).
+Distance used when `v ∈ s` can be expressed as the intersection of level sets `f_i(v) ≤ 0 ∀ i ∈ I`.
+The distance is expressed as `norm([max(f_i(v), 0) ∀ i ∈ I], n)` with `p` a norm value accepted by `LinearAlgebra.norm`.
 """
 struct NormedEpigraphDistance{p} <: AbstractDistance end
-
-# _norm_set(::NormedEpigraphDistance{1}) = MOI.NormOneCone
-# _norm_set(::NormedEpigraphDistance{2}) = MOI.SecondOrderCone
-# _norm_set(::NormedEpigraphDistance{Inf}) = MOI.NormInfCone
