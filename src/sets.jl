@@ -79,7 +79,8 @@ function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real},
     u = v[2]
     xs = v[3:end]
     return LinearAlgebra.norm(
-        (max(-t, zero(t)), max(-u, zero(u)), max(LinearAlgebra.dot(xs,xs) - 2 * t * u)), p
+        (max(-t, zero(t)), max(-u, zero(u)), max(LinearAlgebra.dot(xs,xs) - 2 * t * u)),
+        p,
     )
 end
 
@@ -110,7 +111,8 @@ function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real},
     z = v[3]
     result = y * exp(x/y) - z
     return LinearAlgebra.norm(
-        (max(-y, zero(result)), max(result, zero(result))), p,
+        (max(-y, zero(result)), max(result, zero(result))),
+        p,
     )
 end
 
@@ -125,7 +127,8 @@ function distance_to_set(::NormedEpigraphDistance{p}, vs::AbstractVector{<:Real}
     w = vs[3]
     result = -u*exp(v/u) - ℯ * w
     return LinearAlgebra.norm(
-        (max(u, zero(result)), max(result, zero(result))), p,
+        (max(u, zero(result)), max(result, zero(result))),
+        p,
     )
 end
 
@@ -158,7 +161,8 @@ function distance_to_set(::NormedEpigraphDistance{p}, vs::AbstractVector{<:Real}
     ce = 1-e
     result = abs(w) - (u/e)^e * (v/ce)^ce
     return LinearAlgebra.norm(
-        (max(-u, zero(result)), max(-v, zero(result)), max(result, zero(result))), p,
+        (max(-u, zero(result)), max(-v, zero(result)), max(result, zero(result))),
+        p,
     )
 end
 
@@ -178,7 +182,8 @@ function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real},
         push!(
             max.(v[2:end], zero(result)),
             max(result, zero(result)),
-        ), p,
+        ),
+        p,
     )
 end
 
