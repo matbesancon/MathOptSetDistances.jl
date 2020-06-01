@@ -9,19 +9,32 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Reals) 
     return zero(T)
 end
 
-function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.Zeros)
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.Zeros) where {p}
     _check_dimension(v, s)
-    return LinearAlgebra.norm2(v)
+    return LinearAlgebra.norm(v, p)
+end
+
+function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.Zeros)
+    return distance_to_set(NormedEpigraphDistance{2}(), v, s)
+end
+
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.Nonnegatives) where {p}
+    _check_dimension(v, s)
+    return LinearAlgebra.norm((ifelse(vi < 0, -vi, zero(vi)) for vi in v), p)
 end
 
 function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.Nonnegatives)
+    return distance_to_set(NormedEpigraphDistance{2}(), v, s)
+end
+
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.Nonpositives) where {p}
     _check_dimension(v, s)
-    return LinearAlgebra.norm2(ifelse(vi < 0, -vi, zero(vi)) for vi in v)
+    return LinearAlgebra.norm((ifelse(vi > 0, vi, zero(vi)) for vi in v), p)
 end
 
 function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.Nonpositives)
     _check_dimension(v, s)
-    return LinearAlgebra.norm2(ifelse(vi > 0, vi, zero(vi)) for vi in v)
+    return distance_to_set(NormedEpigraphDistance{2}(), v, s)
 end
 
 distance_to_set(::EpigraphViolationDistance, v::Real, s::MOI.LessThan) = max(v - s.upper, zero(v))
@@ -60,14 +73,19 @@ function distance_to_set(::DefaultDistance, v, s::Union{MOI.NormInfinityCone, MO
     return distance_to_set(EpigraphViolationDistance(), v, s)
 end
 
-function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.RotatedSecondOrderCone)
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.RotatedSecondOrderCone) where {p}
     _check_dimension(v, s)
     t = v[1]
     u = v[2]
     xs = v[3:end]
-    return LinearAlgebra.norm2(
-        (max(-t, zero(t)), max(-u, zero(u)), max(LinearAlgebra.dot(xs,xs) - 2 * t * u))
+    return LinearAlgebra.norm(
+        (max(-t, zero(t)), max(-u, zero(u)), max(LinearAlgebra.dot(xs,xs) - 2 * t * u)),
+        p,
     )
+end
+
+function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.RotatedSecondOrderCone)
+    return distance_to_set(NormedEpigraphDistance{2}(), v, s)
 end
 
 function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.GeometricMeanCone)
@@ -86,26 +104,36 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.Ge
     return max(result, zero(result))
 end
 
-function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.ExponentialCone)
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.ExponentialCone) where {p}
     _check_dimension(v, s)
     x = v[1]
     y = v[2]
     z = v[3]
     result = y * exp(x/y) - z
-    return LinearAlgebra.norm2(
-        (max(-y, zero(result)), max(result, zero(result)))
+    return LinearAlgebra.norm(
+        (max(-y, zero(result)), max(result, zero(result))),
+        p,
     )
 end
 
-function distance_to_set(::DefaultDistance, vs::AbstractVector{<:Real}, s::MOI.DualExponentialCone)
+function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.ExponentialCone)
+    return distance_to_set(NormedEpigraphDistance{2}(), v, s)
+end
+
+function distance_to_set(::NormedEpigraphDistance{p}, vs::AbstractVector{<:Real}, s::MOI.DualExponentialCone) where {p}
     _check_dimension(vs, s)
     u = vs[1]
     v = vs[2]
     w = vs[3]
     result = -u*exp(v/u) - ℯ * w
-    return LinearAlgebra.norm2(
-        (max(u, zero(result)), max(result, zero(result)))
+    return LinearAlgebra.norm(
+        (max(u, zero(result)), max(result, zero(result))),
+        p,
     )
+end
+
+function distance_to_set(::DefaultDistance, vs::AbstractVector{<:Real}, s::MOI.DualExponentialCone)
+    return distance_to_set(NormedEpigraphDistance{2}(), vs, s)
 end
 
 function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.PowerCone)
@@ -124,7 +152,7 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.Po
     return max(result, zero(result))
 end
 
-function distance_to_set(::DefaultDistance, vs::AbstractVector{<:Real}, s::MOI.DualPowerCone)
+function distance_to_set(::NormedEpigraphDistance{p}, vs::AbstractVector{<:Real}, s::MOI.DualPowerCone) where {p}
     _check_dimension(vs, s)
     u = vs[1]
     v = vs[2]
@@ -132,12 +160,17 @@ function distance_to_set(::DefaultDistance, vs::AbstractVector{<:Real}, s::MOI.D
     e = s.exponent
     ce = 1-e
     result = abs(w) - (u/e)^e * (v/ce)^ce
-    return LinearAlgebra.norm2(
-        (max(-u, zero(result)), max(-v, zero(result)), max(result, zero(result)))
+    return LinearAlgebra.norm(
+        (max(-u, zero(result)), max(-v, zero(result)), max(result, zero(result))),
+        p,
     )
 end
 
-function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, set::MOI.RelativeEntropyCone)
+function distance_to_set(::DefaultDistance, vs::AbstractVector{<:Real}, s::MOI.DualPowerCone)
+    return distance_to_set(NormedEpigraphDistance{2}(), vs, s)
+end
+
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, set::MOI.RelativeEntropyCone) where {p}
     _check_dimension(v, s)
     n = (dimension(set)-1) ÷ 2
     u = v[1]
@@ -145,10 +178,17 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, set::MOI.
     w = v[(n+2):end]
     s = sum(w[i] * log(w[i]/v[i]) for i in eachindex(w))
     result = s - u
-    return LinearAlgebra.norm2(push!(
-        max.(v[2:end], zero(result)),
-        max(result, zero(result)),
-    ))
+    return LinearAlgebra.norm(
+        push!(
+            max.(v[2:end], zero(result)),
+            max(result, zero(result)),
+        ),
+        p,
+    )
+end
+
+function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, set::MOI.RelativeEntropyCone)
+    return distance_to_set(NormedEpigraphDistance{2}(), v, set)
 end
 
 function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.NormSpectralCone)

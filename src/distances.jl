@@ -15,14 +15,6 @@ Default distance function, implemented for all sets.
 struct DefaultDistance <: AbstractDistance end
 
 """
-    EpigraphViolationDistance
-
-Distance used when `v ∈ s` can be expressed as a single scalar function `f(v) ≤ 0`.
-The distance is expressed as `max(f(v), 0)`.
-"""
-struct EpigraphViolationDistance <: AbstractDistance end
-
-"""
     distance_to_set(distance_definition, v, s)
 
 Compute the distance of a value to a set.
@@ -34,3 +26,19 @@ with `T` of appropriate type for members of the set.
 function distance_to_set end
 
 distance_to_set(::AbstractDistance, v, s) = distance_to_set(DefaultDistance(), v, s)
+
+"""
+    EpigraphViolationDistance
+
+Distance used when `v ∈ s` can be expressed as a single scalar function `f(v) ≤ 0`.
+The distance is expressed as `max(f(v), 0)`.
+"""
+struct EpigraphViolationDistance <: AbstractDistance end
+
+"""
+    NormedEpigraphDistance{p}
+
+Distance used when `v ∈ s` can be expressed as the intersection of level sets `f_i(v) ≤ 0 ∀ i ∈ I`.
+The distance is expressed as `norm([max(f_i(v), 0) ∀ i ∈ I], n)` with `p` a norm value accepted by `LinearAlgebra.norm`.
+"""
+struct NormedEpigraphDistance{p} <: AbstractDistance end
