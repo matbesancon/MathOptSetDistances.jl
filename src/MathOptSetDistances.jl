@@ -1,6 +1,7 @@
 module MathOptSetDistances
 
 import MathOptInterface
+using BlockDiagonals
 const MOI = MathOptInterface
 
 import LinearAlgebra
