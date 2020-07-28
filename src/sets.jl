@@ -246,7 +246,9 @@ end
 
 
 """
-    projection of vector `z` on zero cone i.e. K = {0} or its dual
+    projection_on_set(::AbstractDistance, ::MOI.Zeros, z::Array{Float64}, dual=true)
+
+projection of vector `z` on zero cone i.e. K = {0} or its dual
 """
 function projection_on_set(::DefaultDistance, ::MOI.Zeros, z::Array{Float64}, dual=true)
     return dual ? z : zeros(Float64, size(z))
@@ -264,7 +266,7 @@ end
     projection of vector `z` on Nonnegative cone i.e. K = R+
 """
 function projection_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Array{Float64})
-    return max.(z,0.0)
+    return max.(z, 0.0)
 end
 
 """
@@ -325,9 +327,11 @@ function unvec_symm(x, dim)
 end
 
 """
-    Returns a vectorized representation of a symmetric matrix `X`.
-    Vectorization (including scaling) as per SCS.
-    vec(X) = (X11, sqrt(2)*X21, ..., sqrt(2)*Xk1, X22, sqrt(2)*X32, ..., Xkk)
+    vec_symm(X)
+
+Returns a vectorized representation of a symmetric matrix `X`.
+Vectorization (including scaling) as per SCS.
+`vec(X) = (X11, sqrt(2)*X21, ..., sqrt(2)*Xk1, X22, sqrt(2)*X32, ..., Xkk)`
 """
 function vec_symm(X)
     X = copy(X)
@@ -339,8 +343,10 @@ function vec_symm(X)
 end
 
 """
-    Projection onto R^n x K^* x R_+
-    `cones` represents a convex cone K, and K^* is its dual cone
+    projection_on_set(::DefaultDistance, cones::Array{<:MOI.AbstractSet}, z)
+
+Projection onto R^n x K^* x R_+
+ `cones` represents a convex cone K, and K^* is its dual cone
 """
 function projection_on_set(::DefaultDistance, cones::Array{<:MOI.AbstractSet}, z)
     @assert length(cones) == length(z)
