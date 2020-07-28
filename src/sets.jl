@@ -273,7 +273,7 @@ end
 function projection_on_set(::DefaultDistance, ::MOI.SecondOrderCone, z::Array{Float64})
     t = z[1]
     x = z[2:length(z)]
-    norm_x = norm(x)
+    norm_x = LinearAlgebra.norm(x)
     if norm_x <= t
         return copy(z)
     elseif norm_x <= -t
@@ -293,8 +293,8 @@ end
 function projection_on_set(::DefaultDistance, ::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64})
     dim = Int64(floor(√(2*length(z))))
     X = unvec_symm(z, dim)
-    λ, U = eigen(X)
-    return vec_symm(U * Diagonal(max.(λ,0)) * U')
+    λ, U = LinearAlgebra.eigen(X)
+    return vec_symm(U * LinearAlgebra.Diagonal(max.(λ,0)) * U')
 end
 
 """
@@ -335,7 +335,7 @@ function vec_symm(X)
     for i in 1:size(X)[1]
         X[i,i] /= √2
     end
-    return X[tril(trues(size(X)))]
+    return X[LinearAlgebra.tril(trues(size(X)))]
 end
 
 """
@@ -344,7 +344,7 @@ end
 """
 function projection_on_set(::DefaultDistance, cones::Array{<:MOI.AbstractSet}, z)
     @assert length(cones) == length(z)
-    return vcat([projection_on_set(cones[i], z[i]) for i in 1:length(cones)]...)
+    return vcat([projection_on_set(DefaultDistance(), cones[i], z[i]) for i in 1:length(cones)]...)
 end
 
 
@@ -376,7 +376,7 @@ function projection_gradient_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Ar
     y = (sign.(z) .+ 1.0)/2
     n = length(y)
     result = zeros(n, n)
-    result[diagind(result)] .= y
+    result[LinearAlgebra.diagind(result)] .= y
     return result
 end
 
@@ -387,15 +387,15 @@ function projection_gradient_on_set(::DefaultDistance, ::MOI.SecondOrderCone, z:
     n = length(z)
     t = z[1]
     x = z[2:n]
-    norm_x = norm(x)
+    norm_x = LinearAlgebra.norm(x)
     if norm_x <= t
-        return Matrix{Float64}(I,n,n)
+        return Matrix{Float64}(LinearAlgebra.I,n,n)
     elseif norm_x <= -t
         return zeros(n,n)
     else
         result = [
             norm_x     x';
-            x          (norm_x + t)*Matrix{Float64}(I,n-1,n-1) - (t/(norm_x^2))*(x*x')
+            x          (norm_x + t)*Matrix{Float64}(LinearAlgebra.I,n-1,n-1) - (t/(norm_x^2))*(x*x')
         ]
         result /= (2.0 * norm_x)
         return result
@@ -423,11 +423,11 @@ function projection_gradient_on_set(::DefaultDistance, ::MOI.PositiveSemidefinit
     n = length(z)
     dim = Int64(floor(√(2*n)))
     X = unvec_symm(z, dim)
-    λ, U = eigen(X)
+    λ, U = LinearAlgebra.eigen(X)
 
     # if all the eigenvalues are >= 0
     if max.(λ, 0) == λ
-        return Matrix{Float64}(I, n, n)
+        return Matrix{Float64}(LinearAlgebra.I, n, n)
     end
 
     # k is the number of negative eigenvalues in X minus ONE
@@ -461,5 +461,5 @@ end
 """
 function projection_gradient_on_set(::DefaultDistance, cones::Array{<:MOI.AbstractSet}, z)
     @assert length(cones) == length(z)
-    return BlockDiagonal([projection_gradient_on_set(cones[i], z[i]) for i in 1:length(cones)])
+    return BlockDiagonal([projection_gradient_on_set(DefaultDistance(), cones[i], z[i]) for i in 1:length(cones)])
 end
