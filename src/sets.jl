@@ -246,7 +246,9 @@ end
 
 
 """
-    projection of vector `z` on zero cone i.e. K = {0} or its dual
+    projection_on_set(::AbstractDistance, ::MOI.Zeros, z::Array{Float64}, dual=true)
+
+projection of vector `z` on zero cone i.e. K = {0} or its dual
 """
 function projection_on_set(::DefaultDistance, ::MOI.Zeros, z::Array{Float64}, dual=true)
     return dual ? z : zeros(Float64, size(z))
@@ -264,7 +266,7 @@ end
     projection of vector `z` on Nonnegative cone i.e. K = R+
 """
 function projection_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Array{Float64})
-    return max.(z,0.0)
+    return max.(z, 0.0)
 end
 
 """
