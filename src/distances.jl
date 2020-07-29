@@ -44,30 +44,30 @@ The distance is expressed as `norm([max(f_i(v), 0) ∀ i ∈ I], n)` with `p` a 
 struct NormedEpigraphDistance{p} <: AbstractDistance end
 
 """
-    projection_on_set(distance_definition, s, v)
+    projection_on_set(distance_definition, s, v, dual)
 
 Compute the projection of a vector `v` on a set `s`.
 
 Each set `S` implements at least `projection_on_set(d::DefaultDistance, v::T, s::S)`
 with `T` of appropriate type for members of the set.
 
-For some conic sets, the keyword `dual` specifies whether to compute projection on the cone or its dual cone
+The keyword `dual` specifies whether to compute projection on the cone or its dual cone
 """
 function projection_on_set  end
 
-projection_on_set(::AbstractDistance, s, v) = projection_on_set(DefaultDistance(), s, v)
+projection_on_set(::AbstractDistance, s, v, dual) = projection_on_set(DefaultDistance(), s, v, dual)
 
 
 """
-    projection_gradient_on_set(distance_definition, s, v)
+    projection_gradient_on_set(distance_definition, s, v, dual)
 
 Compute the gradient of projection of a vector `v` on a set `s`.
 
 Each set `S` implements at least `projection_gradient_on_set(d::DefaultDistance, v::T, s::S)`
 with `T` of appropriate type for members of the set.
 
-For some conic sets, the keyword `dual` specifies whether to compute gradient of projection on the cone or its dual cone
+The keyword `dual` specifies whether to compute gradient of projection on the cone or its dual cone
 """
 function projection_gradient_on_set end
 
-projection_gradient_on_set(::AbstractDistance, s, v) = projection_gradient_on_set(DefaultDistance(), s, v)
+projection_gradient_on_set(::AbstractDistance, s, v, dual) = projection_gradient_on_set(DefaultDistance(), s, v, dual)
