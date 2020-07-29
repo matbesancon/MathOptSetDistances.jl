@@ -56,7 +56,7 @@ end
 projection of vector `z` on positive semidefinite cone i.e. K = S^n⨥
 """
 function projection_on_set(::DefaultDistance, ::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64})
-    dim = Int64(floor(√(2*length(z))))
+    dim = isqrt(2*length(z))
     X = unvec_symm(z, dim)
     λ, U = LinearAlgebra.eigen(X)
     D = LinearAlgebra.Diagonal(max.(λ, 0))
@@ -81,13 +81,14 @@ function unvec_symm(x, dim)
     X = zeros(dim, dim)
     for i in 1:dim
         for j in i:dim
-            @inbounds X[j,i] = X[i,j] = x[(i-1)*dim-Int(((i-1)*i)/2)+j]
+            @inbounds X[j,i] = X[i,j] = x[(i-1)*dim-div((i-1)*i, 2)+j]
         end
     end
-    # X = X + X'
-    X /= √2
     for i in 1:dim
-        X[i,i] *= √2
+        for j in i+1:dim
+            X[i, j] /= √2
+            X[j, i] /= √2
+        end
     end
     return X
 end
@@ -100,10 +101,11 @@ Vectorization (including scaling) as per SCS.
 `vec(X) = (X11, sqrt(2)*X21, ..., sqrt(2)*Xk1, X22, sqrt(2)*X32, ..., Xkk)`
 """
 function vec_symm(X)
-    X = copy(X)
-    X *= √2
     for i in 1:size(X)[1]
-        X[i,i] /= √2
+        for j in i+1:size(X)[2]
+            X[i, j] *= √2
+            X[j, i] *= √2
+        end
     end
     return X[LinearAlgebra.tril(trues(size(X)))]
 end
@@ -201,7 +203,7 @@ end
 
 function projection_gradient_on_set(::DefaultDistance, ::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64}, y::Array{Float64})
     n = length(z)
-    dim = Int64(floor(√(2*n)))
+    dim = isqrt(2*n)
     X = unvec_symm(z, dim)
     λ, U = LinearAlgebra.eigen(X)
 
