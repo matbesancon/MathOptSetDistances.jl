@@ -3,33 +3,42 @@
 
 
 """
-    projection_on_set(::AbstractDistance, ::MOI.Zeros, z::Array{Float64}, dual=false)
+    projection_on_set(::AbstractDistance, ::MOI.Zeros, z::Array{Float64})
 
-projection of vector `z` on zero cone i.e. K = {0} or its dual
+projection of vector `z` on zero cone i.e. K = {0}
 """
-function projection_on_set(::DefaultDistance, ::MOI.Zeros, z::Array{Float64}, dual=false)
-    return dual ? z : zeros(Float64, size(z))
-end
-
-function projection_on_set(::DefaultDistance, set::MOI.EqualTo, z::Float64, dual=false)
-    return dual ? z : set.value  # i doubt this value
+function projection_on_set(::DefaultDistance, ::MOI.Zeros, z::Array{Float64})
+    return zeros(Float64, size(z))
 end
 
 """
-    projection_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Array{Float64}, dual=false)
+    projection_on_set(::AbstractDistance, ::MOI.Reals, z::Array{Float64})
+
+projection of vector `z` on real cone i.e. K = R
+"""
+function projection_on_set(::DefaultDistance, ::MOI.Reals, z::Array{Float64})
+    return z
+end
+
+function projection_on_set(::DefaultDistance, set::MOI.EqualTo, z::Float64)
+    return zeros(Float64, size(z)) .+ set.value
+end
+
+"""
+    projection_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Array{Float64})
 
 projection of vector `z` on Nonnegative cone i.e. K = R+
 """
-function projection_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Array{Float64}, dual=false)
+function projection_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Array{Float64})
     return max.(z, 0.0)
 end
 
 """
-    projection_on_set(::NormedEpigraphDistance{p}, ::MOI.SecondOrderCone, z::Array{Float64}, dual=false)
+    projection_on_set(::NormedEpigraphDistance{p}, ::MOI.SecondOrderCone, z::Array{Float64})
 
 projection of vector `z` on second order cone i.e. K = {(t, x) ∈ R+ × Rn |  ||x|| ≤ t }
 """
-function projection_on_set(::NormedEpigraphDistance{p}, ::MOI.SecondOrderCone, z::Array{Float64}, dual=false) where {p}
+function projection_on_set(::NormedEpigraphDistance{p}, ::MOI.SecondOrderCone, z::Array{Float64}) where {p}
     t = z[1]
     x = z[2:length(z)]
     norm_x = LinearAlgebra.norm(x, p)
@@ -46,16 +55,16 @@ function projection_on_set(::NormedEpigraphDistance{p}, ::MOI.SecondOrderCone, z
     end
 end
 
-function projection_on_set(::DefaultDistance, cone::MOI.SecondOrderCone, z::Array{Float64}, dual=false)
+function projection_on_set(::DefaultDistance, cone::MOI.SecondOrderCone, z::Array{Float64})
     return projection_on_set(NormedEpigraphDistance{2}(), cone, z)
 end
 
 """
-    projection_on_set(::DefaultDistance, ::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64}, dual=false)
+    projection_on_set(::DefaultDistance, ::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64})
     
 projection of vector `z` on positive semidefinite cone i.e. K = S^n⨥
 """
-function projection_on_set(::DefaultDistance, ::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64}, dual=false)
+function projection_on_set(::DefaultDistance, ::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64})
     dim = isqrt(2*length(z))
     X = unvec_symm(z, dim)
     λ, U = LinearAlgebra.eigen(X)
@@ -113,22 +122,33 @@ end
 """
     projection_on_set(::DefaultDistance, cones::Array{<:MOI.AbstractSet}, z)
 
-Projection onto R^n x K^* x R_+
- `cones` represents a convex cone K, and K^* is its dual cone
+Projection onto `K`, a product of convex cones
+
+Find expression of projections on cones and their derivatives here: https://stanford.edu/~boyd/papers/pdf/cone_prog_refine.pdf
 """
-function projection_on_set(::DefaultDistance, cones::Array{<:MOI.AbstractSet}, z, dual=false)
+function projection_on_set(::DefaultDistance, cones::Array{<:MOI.AbstractSet}, z)
     @assert length(z) == length(cones)
-    return vcat([projection_on_set(DefaultDistance(), cones[i], z[i], dual) for i in 1:length(cones)]...)
+    return vcat([projection_on_set(DefaultDistance(), cones[i], z[i]) for i in 1:length(cones)]...)
 end
 
 
 
 """
-    projection_gradient_on_set(::DefaultDistance, ::MOI.Zeros, z::Array{Float64}, dual=false)
+    projection_gradient_on_set(::DefaultDistance, ::MOI.Zeros, z::Array{Float64})
 
 derivative of projection of vector `z` on zero cone i.e. K = {0}
 """
-function projection_gradient_on_set(::DefaultDistance, ::MOI.Zeros, z::Array{Float64}, dual=false)
+function projection_gradient_on_set(::DefaultDistance, ::MOI.Zeros, z::Array{Float64})
+    y = zeros(Float64, size(z))
+    return reshape(y, length(y), 1)
+end
+
+"""
+    projection_gradient_on_set(::DefaultDistance, ::MOI.Reals, z::Array{Float64})
+
+derivative of projection of vector `z` on real cone i.e. K = R
+"""
+function projection_gradient_on_set(::DefaultDistance, ::MOI.Reals, z::Array{Float64})
     y = ones(Float64, size(z))
     return reshape(y, length(y), 1)
 end
@@ -136,17 +156,17 @@ end
 """
     projection_gradient_on_set(::DefaultDistance, ::MOI.EqualTo, z::Float64)
 """
-function projection_gradient_on_set(::DefaultDistance, ::MOI.EqualTo, ::Float64, dual=false)
-    y = ones(Float64, 1)
+function projection_gradient_on_set(::DefaultDistance, ::MOI.EqualTo, ::Float64)
+    y = zeros(Float64, 1)
     return reshape(y, length(y), 1)
 end
 
 """
-    projection_gradient_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Array{Float64}, dual=false)    
+    projection_gradient_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Array{Float64})    
 
 derivative of projection of vector `z` on Nonnegative cone i.e. K = R+
 """
-function projection_gradient_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Array{Float64}, dual=false)
+function projection_gradient_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Array{Float64})
     y = (sign.(z) .+ 1.0)/2
     n = length(y)
     result = zeros(n, n)
@@ -155,11 +175,11 @@ function projection_gradient_on_set(::DefaultDistance, ::MOI.Nonnegatives, z::Ar
 end
 
 """
-    projection_gradient_on_set(::NormedEpigraphDistance{p}, ::MOI.SecondOrderCone, z::Array{Float64}, dual=false)
+    projection_gradient_on_set(::NormedEpigraphDistance{p}, ::MOI.SecondOrderCone, z::Array{Float64})
 
 derivative of projection of vector `z` on second order cone i.e. K = {(t, x) ∈ R+ × Rn |  ||x|| ≤ t }
 """
-function projection_gradient_on_set(::NormedEpigraphDistance{p}, ::MOI.SecondOrderCone, z::Array{Float64}, dual=false) where {p}
+function projection_gradient_on_set(::NormedEpigraphDistance{p}, ::MOI.SecondOrderCone, z::Array{Float64}) where {p}
     n = length(z)
     t = z[1]
     x = z[2:n]
@@ -178,16 +198,16 @@ function projection_gradient_on_set(::NormedEpigraphDistance{p}, ::MOI.SecondOrd
     end
 end
 
-function projection_gradient_on_set(::DefaultDistance, cone::MOI.SecondOrderCone, z::Array{Float64}, dual=false)
+function projection_gradient_on_set(::DefaultDistance, cone::MOI.SecondOrderCone, z::Array{Float64})
     return projection_gradient_on_set(NormedEpigraphDistance{2}(), cone, z)
 end
 
 """
-    projection_gradient_on_set(::DefaultDistance, cone::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64}, dual=false)
+    projection_gradient_on_set(::DefaultDistance, cone::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64})
 
-    derivative of projection of vector `z` on positive semidefinite cone i.e. K = S^n⨥
+derivative of projection of vector `z` on positive semidefinite cone i.e. K = S^n⨥
 """
-function projection_gradient_on_set(::DefaultDistance, cone::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64}, dual=false)
+function projection_gradient_on_set(::DefaultDistance, cone::MOI.PositiveSemidefiniteConeTriangle, z::Array{Float64})
     n = length(z)
     y = zeros(n)
     D = zeros(n,n)
@@ -243,8 +263,10 @@ end
  
 Derivative of the projection of vector `z` on product of `cones`
 projection_gradient_on_set[i,j] = ∂projection_on_set[i] / ∂z[j]   where `projection_on_set` denotes projection of `z` on `cone`
+
+Find expression of projections on cones and their derivatives here: https://stanford.edu/~boyd/papers/pdf/cone_prog_refine.pdf
 """
-function projection_gradient_on_set(::DefaultDistance, cones::Array{<:MOI.AbstractSet}, z, dual::Bool)
+function projection_gradient_on_set(::DefaultDistance, cones::Array{<:MOI.AbstractSet}, z)
     @assert length(z) == length(cones)
-    return BlockDiagonal([projection_gradient_on_set(DefaultDistance(), cones[i], z[i], dual) for i in 1:length(cones)])
+    return BlockDiagonal([projection_gradient_on_set(DefaultDistance(), cones[i], z[i]) for i in 1:length(cones)])
 end
