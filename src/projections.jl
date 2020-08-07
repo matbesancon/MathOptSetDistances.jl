@@ -207,14 +207,14 @@ end
 
 derivative of projection of vector `z` on positive semidefinite cone i.e. K = S^n⨥
 """
-function projection_gradient_on_set(::DefaultDistance, cone::MOI.PositiveSemidefiniteConeTriangle, z::Array{T}) where {T}
+function projection_gradient_on_set(distance::DefaultDistance, cone::MOI.PositiveSemidefiniteConeTriangle, z::Array{T}) where {T}
     n = length(z)
     y = zeros(T, n)
     D = zeros(T, n, n)
 
     for i in 1:n
         y[i] = one(T)
-        @inbounds D[i, 1:n] = projection_gradient_on_set(cone, z, y)
+        @inbounds D[i, 1:n] = projection_gradient_on_set(distance, cone, z, y)
         y[i] = zero(T)
     end
 
