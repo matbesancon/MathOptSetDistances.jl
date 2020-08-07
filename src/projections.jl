@@ -207,21 +207,7 @@ end
 
 derivative of projection of vector `z` on positive semidefinite cone i.e. K = S^n⨥
 """
-function projection_gradient_on_set(distance::DefaultDistance, cone::MOI.PositiveSemidefiniteConeTriangle, z::Array{T}) where {T}
-    n = length(z)
-    y = zeros(T, n)
-    D = zeros(T, n, n)
-
-    for i in 1:n
-        y[i] = one(T)
-        @inbounds D[i, 1:n] = projection_gradient_on_set(distance, cone, z, y)
-        y[i] = zero(T)
-    end
-
-    return D
-end
-
-function projection_gradient_on_set(::DefaultDistance, ::MOI.PositiveSemidefiniteConeTriangle, z::Array{T}, y::Array{T}) where {T}
+function projection_gradient_on_set(::DefaultDistance, ::MOI.PositiveSemidefiniteConeTriangle, z::Array{T}) where {T}
     n = length(z)
     dim = isqrt(2*n)
     X = unvec_symm(z, dim)
@@ -231,31 +217,44 @@ function projection_gradient_on_set(::DefaultDistance, ::MOI.PositiveSemidefinit
     if max.(λ, 0) == λ
         return Matrix{T}(LinearAlgebra.I, n, n)
     end
-
+    
     # k is the number of negative eigenvalues in X minus ONE
     k = count(λ .< 1e-4)
-
-    # defining matrix B
-    X̃ = unvec_symm(y, dim)
-    B = U' * X̃ * U
     
-    for i in 1:size(B)[1] # do the hadamard product
-        for j in 1:size(B)[2]
-            if (i <= k && j <= k)
-                B[i, j] = 0
-            elseif (i > k && j <= k)
-                λpi = max(λ[i], zero(T))
-                λmj = -min(λ[j], zero(T))
-                B[i, j] *= λpi / (λmj + λpi)
-            elseif (i <= k && j > k) 
-                λmi = -min(λ[i], zero(T))
-                λpj = max(λ[j], zero(T))
-                B[i, j] *= λpj / (λmi + λpj)
+    y = zeros(T, n)
+    D = zeros(T, n, n)
+
+    for i in 1:n
+        # set eigenvector
+        y[i] = one(T)
+        
+        # defining matrix B
+        X̃ = unvec_symm(y, dim)
+        B = U' * X̃ * U
+
+        for i in 1:size(B)[1] # do the hadamard product
+            for j in 1:size(B)[2]
+                if (i <= k && j <= k)
+                    B[i, j] = 0
+                elseif (i > k && j <= k)
+                    λpi = max(λ[i], zero(T))
+                    λmj = -min(λ[j], zero(T))
+                    B[i, j] *= λpi / (λmj + λpi)
+                elseif (i <= k && j > k) 
+                    λmi = -min(λ[i], zero(T))
+                    λpj = max(λ[j], zero(T))
+                    B[i, j] *= λpj / (λmi + λpj)
+                end
             end
         end
+
+        @inbounds D[i, 1:n] = vec_symm(U * B * U')
+        
+        # reset eigenvector
+        y[i] = zero(T)
     end
 
-    return vec_symm(U * B * U')
+    return D
 end
 
 """

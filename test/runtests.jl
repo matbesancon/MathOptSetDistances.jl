@@ -7,6 +7,7 @@ const MOI = MathOptSetDistances.MOI
 
 using Test
 import LinearAlgebra
+import BlockDiagonals: BlockDiagonal
 
 @testset "Set distances" begin
     @testset "$n-dimensional orthants" for n in 1:3:15
