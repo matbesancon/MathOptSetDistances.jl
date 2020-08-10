@@ -7,6 +7,7 @@ const MOI = MathOptSetDistances.MOI
 
 using Test
 import LinearAlgebra
+import BlockDiagonals: BlockDiagonal
 
 @testset "Set distances" begin
     @testset "$n-dimensional orthants" for n in 1:3:15
@@ -129,3 +130,5 @@ MOD.distance_to_set(::DummyDistance, v, s) = MOD.distance_to_set(MOD.DefaultDist
         end
     end
 end
+
+include("projections.jl")

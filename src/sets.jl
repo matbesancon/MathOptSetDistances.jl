@@ -1,4 +1,3 @@
-
 function _check_dimension(v::AbstractVector, s)
     length(v) != MOI.dimension(s) && throw(DimensionMismatch("Mismatch between value and set"))
     return nothing

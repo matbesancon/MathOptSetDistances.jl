@@ -42,3 +42,28 @@ Distance used when `v ∈ s` can be expressed as the intersection of level sets 
 The distance is expressed as `norm([max(f_i(v), 0) ∀ i ∈ I], n)` with `p` a norm value accepted by `LinearAlgebra.norm`.
 """
 struct NormedEpigraphDistance{p} <: AbstractDistance end
+
+"""
+    projection_on_set(distance_definition, s, v)
+
+Compute the projection of a vector `v` on a set `s`.
+
+Each set `S` implements at least `projection_on_set(d::DefaultDistance, v::T, s::S)`
+with `T` of appropriate type for members of the set.
+"""
+function projection_on_set  end
+
+projection_on_set(::AbstractDistance, s::Array{<:MOI.AbstractSet}, v) = projection_on_set(DefaultDistance(), s, v)
+
+
+"""
+    projection_gradient_on_set(distance_definition, s, v)
+
+Compute the gradient of projection of a vector `v` on a set `s`.
+
+Each set `S` implements at least `projection_gradient_on_set(d::DefaultDistance, v::T, s::S)`
+with `T` of appropriate type for members of the set.
+"""
+function projection_gradient_on_set end
+
+projection_gradient_on_set(::AbstractDistance, s::Array{<:MOI.AbstractSet}, v) = projection_gradient_on_set(DefaultDistance(), s, v)
