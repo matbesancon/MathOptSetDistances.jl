@@ -3,8 +3,14 @@
 [![Build Status](https://travis-ci.com/matbesancon/MathOptSetDistances.jl.svg?branch=master)](https://travis-ci.com/matbesancon/MathOptSetDistances.jl)
 [![Codecov](https://codecov.io/gh/matbesancon/MathOptSetDistances.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/matbesancon/MathOptSetDistances.jl)
 
-Defines the distance of a point `v` to a set `s`. The distance is always 0 if `v ∈ s`.
-The API consists of a single function `set_distance(d::D, v::V, s::S)`, with `S` a `MOI.AbstractSet`,
-`v` a scalar or vector value and `d` a type of distance.  
+## Distance to set
 
-New sets should implement at least `set_distance(::DefaultDistance, v::V, s::S)`.
+`set_distance(d::D, v::V, s::S)` defines the distance of a point `v` to a set `s`. The distance is always 0 if `v ∈ s`.
+`S` is a `MOI.AbstractSet`, `v` is a scalar or vector value and `d` a type of distance that is a subtype of `AbstractDistance`.  
+
+New sets should implement at least `set_distance(::DefaultDistance, v::V, s::MySet)`.
+
+## Projection on set
+
+`projection_on_set(d::D, s::S, z)` returns the point on `S` that is closest to `z` with respect to the distance `d`.   
+`projection_gradient_on_set` returns the gradient of this projection.
