@@ -12,5 +12,5 @@ New sets should implement at least `set_distance(::DefaultDistance, v::V, s::MyS
 
 ## Projection on set
 
-`projection_on_set(d::D, z, s::S)` returns the point on `S` that is closest to `z` with respect to the distance `d`.
+`projection_on_set(d::D, v, s::S)` returns the point on `S` that is closest to `v` with respect to the distance `d`.
 `projection_gradient_on_set` returns the gradient of this projection.
