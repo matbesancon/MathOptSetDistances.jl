@@ -211,7 +211,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
     λ, U = LinearAlgebra.eigen(X)
 
     # if all the eigenvalues are >= 0
-    if max.(λ, 0) == λ
+    if all(>=(0), λ)
         return Matrix{T}(LinearAlgebra.I, n, n)
     end
 
@@ -221,9 +221,9 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
     y = zeros(T, n)
     D = zeros(T, n, n)
 
-    for i in 1:n
+    for idx in 1:n
         # set eigenvector
-        y[i] = one(T)
+        y[idx] = one(T)
 
         # defining matrix B
         X̃ = unvec_symm(y, dim)
@@ -232,25 +232,22 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
         for i in 1:size(B)[1] # do the hadamard product
             for j in 1:size(B)[2]
                 if (i <= k && j <= k)
-                    B[i, j] = 0
+                    @inbounds B[i, j] = 0
                 elseif (i > k && j <= k)
                     λpi = max(λ[i], zero(T))
                     λmj = -min(λ[j], zero(T))
-                    B[i, j] *= λpi / (λmj + λpi)
+                    @inbounds B[i, j] *= λpi / (λmj + λpi)
                 elseif (i <= k && j > k)
                     λmi = -min(λ[i], zero(T))
                     λpj = max(λ[j], zero(T))
-                    B[i, j] *= λpj / (λmi + λpj)
+                    @inbounds B[i, j] *= λpj / (λmi + λpj)
                 end
             end
         end
-
-        @inbounds D[i, 1:n] = vec_symm(U * B * U')
-
+        @inbounds D[idx, :] = vec_symm(U * B * U')
         # reset eigenvector
-        y[i] = zero(T)
+        @inbounds y[idx] = zero(T)
     end
-
     return D
 end
 
