@@ -76,28 +76,33 @@ end
 
 Returns a dim-by-dim symmetric matrix corresponding to `x`.
 
-`x` is a vector of length dim*(dim + 1)/2, corresponding to a symmetric
-matrix; the correspondence is as in SCS.
+`x` is a vector of length dim*(dim + 1)/2, corresponding to a symmetric matrix
 X = [ X11 X12 ... X1k
         X21 X22 ... X2k
         ...
         Xk1 Xk2 ... Xkk ],
 where
-vec(X) = (X11, sqrt(2)*X21, ..., sqrt(2)*Xk1, X22, sqrt(2)*X32, ..., Xkk)
+vec(X) = (X11, X21, ..., Xk1, X22, X32, ..., Xkk)
+
+NOTE: Now this is not specific to SCS/Mosek solver
+Earlier used to be: vec(X) = (X11, sqrt(2)*X21, ..., sqrt(2)*Xk1, X22, sqrt(2)*X32, ..., Xkk)
 """
 function unvec_symm(x, dim)
     X = zeros(dim, dim)
+    idx = 1
     for i in 1:dim
-        for j in i:dim
-            @inbounds X[j,i] = X[i,j] = x[(i-1)*dim-div((i-1)*i, 2)+j]
+        for j in 1:i
+            # @inbounds X[j,i] = X[i,j] = x[(i-1)*dim-div((i-1)*i, 2)+j]
+            @inbounds X[j,i] = X[i,j] = x[idx]
+            idx += 1 
         end
     end
-    for i in 1:dim
-        for j in i+1:dim
-            X[i, j] /= √2
-            X[j, i] /= √2
-        end
-    end
+#     for i in 1:dim
+#         for j in i+1:dim
+#             X[i, j] /= √2
+#             X[j, i] /= √2
+#         end
+#     end
     return X
 end
 
@@ -105,17 +110,19 @@ end
     vec_symm(X)
 
 Returns a vectorized representation of a symmetric matrix `X`.
-Vectorization (including scaling) as per SCS.
-`vec(X) = (X11, sqrt(2)*X21, ..., sqrt(2)*Xk1, X22, sqrt(2)*X32, ..., Xkk)`
+`vec(X) = (X11, X21, ..., Xk1, X22, X32, ..., Xkk)`
+
+NOTE: Now vectorization and scaling is not per SCS.
+Earlier used to be `vec(X) = (X11, sqrt(2)*X21, ..., sqrt(2)*Xk1, X22, sqrt(2)*X32, ..., Xkk)`
 """
 function vec_symm(X)
-    @inbounds for i in 1:size(X)[1]
-        for j in i+1:size(X)[2]
-            X[i, j] *= √2
-            X[j, i] *= √2
-        end
-    end
-    return X[LinearAlgebra.tril(trues(size(X)))]
+#     @inbounds for i in 1:size(X)[1]
+#         for j in i+1:size(X)[2]
+#             X[i, j] *= √2
+#             X[j, i] *= √2
+#         end
+#     end
+    return X[LinearAlgebra.tril(trues(size(X)))']
 end
 
 """
