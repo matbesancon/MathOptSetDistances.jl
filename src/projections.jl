@@ -218,7 +218,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
     λ, U = LinearAlgebra.eigen(X)
 
     # if all the eigenvalues are >= 0
-    if all(>=(0), λ)
+    if all(λ .≥ zero(T))
         return Matrix{T}(LinearAlgebra.I, n, n)
     end
 
