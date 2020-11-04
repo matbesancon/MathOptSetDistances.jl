@@ -116,12 +116,6 @@ NOTE: Now vectorization and scaling is not per SCS.
 Earlier used to be `vec(X) = (X11, sqrt(2)*X21, ..., sqrt(2)*Xk1, X22, sqrt(2)*X32, ..., Xkk)`
 """
 function vec_symm(X)
-#     @inbounds for i in 1:size(X)[1]
-#         for j in i+1:size(X)[2]
-#             X[i, j] *= √2
-#             X[j, i] *= √2
-#         end
-#     end
     return X[LinearAlgebra.tril(trues(size(X)))']
 end
 
