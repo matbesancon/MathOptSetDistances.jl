@@ -39,7 +39,10 @@ end
                                                                                         0.25  0.0   0.0   0.0   0.5]
 
     # testing SDP trivial
-    @test MOD.projection_gradient_on_set(DD, ones(6), MOI.PositiveSemidefiniteConeTriangle(4)) ≈ Matrix{Float64}(LinearAlgebra.I, 6, 6)
+    # eye4 = Matrix{Float64}(LinearAlgebra.I, 4, 4)
+    eye4 = [1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]  # symmetrical PSD triangle format
+    eye10 = Matrix{Float64}(LinearAlgebra.I, 10, 10)
+    @test MOD.projection_gradient_on_set(DD, eye4, MOI.PositiveSemidefiniteConeTriangle(4)) ≈ eye10
 end
 
 @testset "Non-trivial joint projection" begin
