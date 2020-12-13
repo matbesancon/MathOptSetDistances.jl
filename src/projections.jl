@@ -58,7 +58,7 @@ function projection_on_set(::NormedEpigraphDistance{p}, v::AbstractVector{T}, ::
     result = zeros(T, size(v))
     result[1] = one(T)
     result[2:length(v)] = x / norm_x
-    result *= (norm_x + t) / 2.0
+    result *= (norm_x + t) / 2
     return result
 end
 
