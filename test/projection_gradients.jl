@@ -73,9 +73,15 @@ end
             s = MOI.SecondOrderCone(n+1)
             for _ in 1:Ntrials
                 x = safe_randn(n)
-                @testset "SOC interior" begin
+                @testset "SOC interior and negative bound" begin
                     t = LinearAlgebra.norm2(x) + 2 * rand()
                     v = vcat(t, x)
+                    dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                    @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                    @test dΠ ≈ grad_fdm1 || dΠ ≈ grad_fdm2
+                    v = vcat(-t, x)
                     dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
