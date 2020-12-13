@@ -53,9 +53,6 @@ with `T` of appropriate type for members of the set.
 """
 function projection_on_set end
 
-projection_on_set(::AbstractDistance, v, s::MOI.AbstractSet) = projection_on_set(DefaultDistance(), v, s)
-
-
 """
     projection_gradient_on_set(distance_definition, v, s)
 
@@ -65,5 +62,3 @@ Each set `S` implements at least `projection_gradient_on_set(d::DefaultDistance,
 with `T` of appropriate type for members of the set.
 """
 function projection_gradient_on_set end
-
-projection_gradient_on_set(::AbstractDistance, v, s::MOI.AbstractSet) = projection_gradient_on_set(DefaultDistance(), v, s)

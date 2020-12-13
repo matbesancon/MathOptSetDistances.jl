@@ -26,10 +26,19 @@ end
 """
     projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonnegatives) where {T}
 
-projection of vector `v` on Nonnegative cone i.e. K = R+
+projection of vector `v` on Nonnegative cone i.e. K = R^n+
 """
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonnegatives) where {T}
     return max.(v, zero(T))
+end
+
+"""
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
+
+projection of vector `v` on Nonpositive cone i.e. K = R^n-
+"""
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
+    return min.(v, zero(T))
 end
 
 """
@@ -148,14 +157,21 @@ end
 """
     projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonnegatives) where {T}
 
-derivative of projection of vector `v` on Nonnegative cone i.e. K = R+
+derivative of projection of vector `v` on Nonnegative cone i.e. K = R^n+
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonnegatives) where {T}
     y = (sign.(v) .+ one(T))/2
-    n = length(y)
-    result = zeros(T, n, n)
-    result[LinearAlgebra.diagind(result)] .= y
-    return result
+    return LinearAlgebra.Diagonal(y)
+end
+
+"""
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
+
+derivative of projection of vector `v` on Nonpositives cone i.e. K = R^n-
+"""
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
+    y = (-sign.(v) .+ one(T))/2
+    return LinearAlgebra.Diagonal(y)
 end
 
 """
