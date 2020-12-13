@@ -18,12 +18,16 @@ const fdm = FiniteDifferences.central_fdm(5, 1)
             MOI.Nonnegatives(n),
             MOI.Nonpositives(n),
         )
-        vs = [randn(n) for _ in 1:Ntrials]
+        vs = [2 * randn(n) for _ in 1:Ntrials]
+        for _ in 1:Ntrials
+            push!(vs, rand(-5:5, n))
+        end
         @testset "Vector set $s" for s in vector_sets
             for v in vs
                 dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
                 grad_fdm = FiniteDifferences.jacobian(fdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                 @test size(grad_fdm) == size(dΠ)
+                @test dΠ ≈ grad_fdm
             end
         end
     end

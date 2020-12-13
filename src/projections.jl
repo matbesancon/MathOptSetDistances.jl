@@ -129,21 +129,19 @@ end
 """
     projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Zeros) where {T}
 
-derivative of projection of vector `v` on zero cone i.e. K = {0}
+derivative of projection of vector `v` on zero cone i.e. K = {0}^n
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Zeros) where {T}
-    y = zeros(T, size(v))
-    return reshape(y, length(y), 1)
+    return FillArrays.Zeros(length(v), length(v))
 end
 
 """
     projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Reals) where {T}
 
-derivative of projection of vector `v` on real cone i.e. K = R
+derivative of projection of vector `v` on real cone i.e. K = R^n
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Reals) where {T}
-    y = ones(T, size(v))
-    return reshape(y, length(y), 1)
+    return LinearAlgebra.Diagonal(ones(length(v)))
 end
 
 """
