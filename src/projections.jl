@@ -207,7 +207,7 @@ derivative of projection of vector `v` on positive semidefinite cone i.e. K = S^
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PositiveSemidefiniteConeTriangle) where {T}
     n = length(v)
-    dim = isqrt(2*n)
+    dim = isqrt(2n)
     X = unvec_symm(v, dim)
     λ, U = LinearAlgebra.eigen(X)
 
