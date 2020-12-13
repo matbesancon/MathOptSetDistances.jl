@@ -19,6 +19,7 @@ function safe_randn(n)
     end
     return v
 end
+
 @testset "Test gradients with finite differences" begin
     Ntrials = 5
     @testset "Dimension $n" for n in (1, 3, 10)
@@ -44,10 +45,10 @@ end
             end
         end
         @testset "PSD cone" begin
+            s = MOI.PositiveSemidefiniteConeTriangle(n)
             for _ in 1:Ntrials
                 L = 3 * tril(rand(n, n))
                 M = L * L'
-                s = MOI.PositiveSemidefiniteConeTriangle(n)
                 @testset "Positive definite" begin
                     v = MOD.vec_symm(M)
                     dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
@@ -61,6 +62,30 @@ end
                     grad_fdm = FiniteDifferences.jacobian(fdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     @test size(grad_fdm) == size(dΠ)
                     # @test dΠ ≈ grad_fdm
+                end
+            end
+        end
+        @testset "SOC" begin
+            s = MOI.SecondOrderCone(n+1)
+            for _ in 1:Ntrials
+                x = safe_randn(n)
+                @testset "SOC interior" begin
+                    t = LinearAlgebra.norm2(x) + 2 * rand()
+                    v = vcat(t, x)
+                    dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                    grad_fdm = FiniteDifferences.jacobian(fdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                    @test size(grad_fdm) == size(dΠ)
+                    @test dΠ ≈ grad_fdm
+                end
+                @testset "Out of cone point" begin
+                    for tscale in (0.1, 0.5, 0.9)
+                        t = tscale * LinearAlgebra.norm2(x)
+                        v = vcat(t, x)
+                        dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                        grad_fdm = FiniteDifferences.jacobian(fdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                        @test size(grad_fdm) == size(dΠ)
+                        @test dΠ ≈ grad_fdm atol=0.1
+                    end
                 end
             end
         end

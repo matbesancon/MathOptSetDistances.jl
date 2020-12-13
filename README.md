@@ -13,4 +13,9 @@ New sets should implement at least `set_distance(::DefaultDistance, v::V, s::MyS
 ## Projection on set
 
 `projection_on_set(d::D, v, s::S)` returns the point on `S` that is closest to `v` with respect to the distance `d`.
-`projection_gradient_on_set` returns the gradient of this projection.
+`projection_gradient_on_set` returns the gradient of this projection, i.e. the transpose of the Jacobian.
+
+## Special matrix types
+
+Given the specific sparsity structure of the gradients, they might return
+non-standard matrices including `FillArrays`, sparse arrays or `LinearAlgebra.Diagonal`.

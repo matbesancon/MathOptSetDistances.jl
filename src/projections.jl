@@ -7,7 +7,7 @@
 projection of vector `v` on zero cone i.e. K = {0}
 """
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Zeros) where {T}
-    return zeros(T, size(v))
+    return FillArrays.Zeros{T}(size(v))
 end
 
 """
@@ -54,13 +54,12 @@ function projection_on_set(::NormedEpigraphDistance{p}, v::AbstractVector{T}, ::
         return copy(v)
     elseif norm_x <= -t
         return zeros(T, size(v))
-    else
-        result = zeros(T, size(v))
-        result[1] = one(T)
-        result[2:length(v)] = x / norm_x
-        result *= (norm_x + t) / 2.0
-        return result
     end
+    result = zeros(T, size(v))
+    result[1] = one(T)
+    result[2:length(v)] = x / norm_x
+    result *= (norm_x + t) / 2.0
+    return result
 end
 
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, cone::MOI.SecondOrderCone) where {T}
