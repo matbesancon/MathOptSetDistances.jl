@@ -46,11 +46,10 @@ end
 end
 
 @testset "Non-trivial joint projection" begin
+    c2 = MOI.SecondOrderCone(5)
     v1 = rand(Float64, 10)
     v2 = rand(Float64, 5)
     c1 = MOI.PositiveSemidefiniteConeTriangle(5)
-    c2 = MOI.SecondOrderCone(5)
-
     output_1 = MOD.projection_on_set(DD, v1, c1)
     output_2 = MOD.projection_on_set(DD, v2, c2)
     output_joint = MOD.projection_on_set(DD, [v1, v2], [c1, c2])

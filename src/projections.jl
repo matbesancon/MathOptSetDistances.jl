@@ -7,7 +7,7 @@
 projection of vector `v` on zero cone i.e. K = {0}
 """
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Zeros) where {T}
-    return zeros(T, size(v))
+    return FillArrays.Zeros{T}(size(v))
 end
 
 """
@@ -26,10 +26,19 @@ end
 """
     projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonnegatives) where {T}
 
-projection of vector `v` on Nonnegative cone i.e. K = R+
+projection of vector `v` on Nonnegative cone i.e. K = R^n+
 """
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonnegatives) where {T}
     return max.(v, zero(T))
+end
+
+"""
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
+
+projection of vector `v` on Nonpositive cone i.e. K = R^n-
+"""
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
+    return min.(v, zero(T))
 end
 
 """
@@ -45,13 +54,12 @@ function projection_on_set(::NormedEpigraphDistance{p}, v::AbstractVector{T}, ::
         return copy(v)
     elseif norm_x <= -t
         return zeros(T, size(v))
-    else
-        result = zeros(T, size(v))
-        result[1] = one(T)
-        result[2:length(v)] = x / norm_x
-        result *= (norm_x + t) / 2.0
-        return result
     end
+    result = zeros(T, size(v))
+    result[1] = one(T)
+    result[2:length(v)] = x / norm_x
+    result *= (norm_x + t) / 2
+    return result
 end
 
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, cone::MOI.SecondOrderCone) where {T}
@@ -83,9 +91,6 @@ X = [ X11 X12 ... X1k
         Xk1 Xk2 ... Xkk ],
 where
 vec(X) = (X11, X21, ..., Xk1, X22, X32, ..., Xkk)
-
-NOTE: Now this is not specific to SCS/Mosek solver
-Earlier used to be: vec(X) = (X11, sqrt(2)*X21, ..., sqrt(2)*Xk1, X22, sqrt(2)*X32, ..., Xkk)
 """
 function unvec_symm(x, dim)
     X = zeros(dim, dim)
@@ -94,15 +99,9 @@ function unvec_symm(x, dim)
         for j in 1:i
             # @inbounds X[j,i] = X[i,j] = x[(i-1)*dim-div((i-1)*i, 2)+j]
             @inbounds X[j,i] = X[i,j] = x[idx]
-            idx += 1 
+            idx += 1
         end
     end
-#     for i in 1:dim
-#         for j in i+1:dim
-#             X[i, j] /= √2
-#             X[j, i] /= √2
-#         end
-#     end
     return X
 end
 
@@ -111,44 +110,37 @@ end
 
 Returns a vectorized representation of a symmetric matrix `X`.
 `vec(X) = (X11, X21, ..., Xk1, X22, X32, ..., Xkk)`
-
-NOTE: Now vectorization and scaling is not per SCS.
-Earlier used to be `vec(X) = (X11, sqrt(2)*X21, ..., sqrt(2)*Xk1, X22, sqrt(2)*X32, ..., Xkk)`
 """
 function vec_symm(X)
     return X[LinearAlgebra.tril(trues(size(X)))']
 end
 
 """
-    projection_on_set(::DefaultDistance, v::AbstractVector{T}, cones::Array{<:MOI.AbstractSet})
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet})
 
-Projection onto `K`, a product of convex cones
-
-Find expression of projections on cones and their derivatives here: https://stanford.edu/~boyd/papers/pdf/cone_prog_refine.pdf
+Projection onto `sets`, a product of sets
 """
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, cones::Array{<:MOI.AbstractSet}) where {T}
-    length(v) == length(cones) || throw(DimensionMismatch("Mismatch between value and set"))
-    return vcat([projection_on_set(DefaultDistance(), v[i], cones[i]) for i in eachindex(cones)]...)
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet}) where {T}
+    length(v) == length(sets) || throw(DimensionMismatch("Mismatch between value and set"))
+    return reduce(vcat, (projection_on_set(DefaultDistance(), v[i], sets[i]) for i in eachindex(sets)))
 end
 
 """
     projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Zeros) where {T}
 
-derivative of projection of vector `v` on zero cone i.e. K = {0}
+derivative of projection of vector `v` on zero cone i.e. K = {0}^n
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Zeros) where {T}
-    y = zeros(T, size(v))
-    return reshape(y, length(y), 1)
+    return FillArrays.Zeros(length(v), length(v))
 end
 
 """
     projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Reals) where {T}
 
-derivative of projection of vector `v` on real cone i.e. K = R
+derivative of projection of vector `v` on real cone i.e. K = R^n
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Reals) where {T}
-    y = ones(T, size(v))
-    return reshape(y, length(y), 1)
+    return LinearAlgebra.Diagonal(ones(length(v)))
 end
 
 """
@@ -162,14 +154,21 @@ end
 """
     projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonnegatives) where {T}
 
-derivative of projection of vector `v` on Nonnegative cone i.e. K = R+
+derivative of projection of vector `v` on Nonnegative cone i.e. K = R^n+
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonnegatives) where {T}
     y = (sign.(v) .+ one(T))/2
-    n = length(y)
-    result = zeros(T, n, n)
-    result[LinearAlgebra.diagind(result)] .= y
-    return result
+    return LinearAlgebra.Diagonal(y)
+end
+
+"""
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
+
+derivative of projection of vector `v` on Nonpositives cone i.e. K = R^n-
+"""
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
+    y = (-sign.(v) .+ one(T))/2
+    return LinearAlgebra.Diagonal(y)
 end
 
 """
@@ -185,13 +184,13 @@ function projection_gradient_on_set(::NormedEpigraphDistance{p}, v::AbstractVect
     if norm_x <= t
         return Matrix{T}(LinearAlgebra.I,n,n)
     elseif norm_x <= -t
-        return zeros(T, n,n)
+        return zeros(T, n, n)
     else
         result = [
             norm_x     x';
             x          (norm_x + t)*Matrix{T}(LinearAlgebra.I,n-1,n-1) - (t/(norm_x^2))*(x*x')
         ]
-        result /= (2.0 * norm_x)
+        result /= (2 * norm_x)
         return result
     end
 end
@@ -207,7 +206,7 @@ derivative of projection of vector `v` on positive semidefinite cone i.e. K = S^
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PositiveSemidefiniteConeTriangle) where {T}
     n = length(v)
-    dim = isqrt(2*n)
+    dim = isqrt(2n)
     X = unvec_symm(v, dim)
     λ, U = LinearAlgebra.eigen(X)
 
@@ -217,7 +216,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
     end
 
     # k is the number of negative eigenvalues in X minus ONE
-    k = count(λ .< 1e-4)
+    k = count(λi < 1e-4 for λi in λ)
 
     y = zeros(T, n)
     D = zeros(T, n, n)
@@ -253,14 +252,14 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
 end
 
 """
-    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, cones::Array{<:MOI.AbstractSet})
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet})
 
-Derivative of the projection of vector `v` on product of `cones`
+Derivative of the projection of vector `v` on product of `sets`
 projection_gradient_on_set[i,j] = ∂projection_on_set[i] / ∂v[j] where `projection_on_set` denotes projection of `v` on `cone`
 
 Find expression of projections on cones and their derivatives here: https://stanford.edu/~boyd/papers/pdf/cone_prog_refine.pdf
 """
-function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, cones::Array{<:MOI.AbstractSet}) where {T}
-    length(v) == length(cones) || throw(DimensionMismatch("Mismatch between value and set"))
-    return BlockDiagonal([projection_gradient_on_set(DefaultDistance(), v[i], cones[i]) for i in eachindex(cones)])
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet}) where {T}
+    length(v) == length(sets) || throw(DimensionMismatch("Mismatch between value and set"))
+    return BlockDiagonal([projection_gradient_on_set(DefaultDistance(), v[i], sets[i]) for i in eachindex(sets)])
 end

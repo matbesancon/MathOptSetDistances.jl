@@ -71,7 +71,7 @@ import BlockDiagonals: BlockDiagonal
         @test MOD.distance_to_set(MOD.DefaultDistance(), vcat(t / 2, vcat(x, -1)), MOI.GeometricMeanCone(n+2)) > 0
         @test MOD.distance_to_set(MOD.DefaultDistance(), vcat(t / 2, -x), MOI.GeometricMeanCone(n+1)) > 0
     end
-    
+
     @testset "Exponential and power cones" begin
         for _ in 1:30
             (x, y, z) = rand(3)
@@ -80,7 +80,7 @@ import BlockDiagonals: BlockDiagonal
                 @test MOD.distance_to_set(MOD.DefaultDistance(), [x, y, z], MOI.ExponentialCone()) ≈ 0 atol=eps(Float64)
                 @test MOD.distance_to_set(MOD.DefaultDistance(), [x, -1, z], MOI.ExponentialCone()) ≈ 1 atol=eps(Float64)
             else
-                @test MOD.distance_to_set(MOD.DefaultDistance(), [x, y, z], MOI.ExponentialCone()) ≈ y * exp(x/y) - z 
+                @test MOD.distance_to_set(MOD.DefaultDistance(), [x, y, z], MOI.ExponentialCone()) ≈ y * exp(x/y) - z
             end
             (u, v, w) = randn(3)
             if u != 0.0 # just in case not to blow up
@@ -89,7 +89,7 @@ import BlockDiagonals: BlockDiagonal
                 elseif u < 0
                     @test MOD.distance_to_set(MOD.DefaultDistance(), [u, v, w], MOI.DualExponentialCone()) ≈ -u*exp(v/u) - ℯ * w
                 end
-                
+
             end
             (x, y) = randn(2)
             if x < 0 || y < 0
@@ -105,7 +105,7 @@ import BlockDiagonals: BlockDiagonal
                     @test MOD.distance_to_set(MOD.DefaultDistance(), [x, y, 3r], MOI.PowerCone(e)) ≈ MOD.distance_to_set(MOD.DefaultDistance(), [x, y, -3r], MOI.PowerCone(e)) > 0
                 end
             end
-    
+
             (u, v, w) = 10 * rand(3)
             e = rand()
             if 0 < e < 1 # avoid exponents of negatives
@@ -114,7 +114,7 @@ import BlockDiagonals: BlockDiagonal
                 @test MOD.distance_to_set(MOD.DefaultDistance(), [u, v, 1 + u^e * v^(1-e) / (e^e * (1-e)^(1-e))], MOI.DualPowerCone(e)) ≈ 1
             end
         end
-    end    
+    end
 end
 
 struct DummyDistance <: MOD.AbstractDistance end
@@ -132,3 +132,4 @@ MOD.distance_to_set(::DummyDistance, v, s) = MOD.distance_to_set(MOD.DefaultDist
 end
 
 include("projections.jl")
+include("projection_gradients.jl")
