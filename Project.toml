@@ -13,6 +13,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
 BlockDiagonals = "0.1"
+FillArrays = "0.10"
 FiniteDifferences = "0.11"
 MathOptInterface = "0.9"
 julia = "1"
