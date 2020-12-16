@@ -8,8 +8,6 @@ const MOD = MathOptSetDistances
 using FiniteDifferences
 using LinearAlgebra
 
-using ForwardDiff
-
 const bfdm = FiniteDifferences.backward_fdm(5, 1)
 const ffdm = FiniteDifferences.forward_fdm(5, 1)
 
