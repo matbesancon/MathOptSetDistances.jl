@@ -8,6 +8,8 @@ const MOD = MathOptSetDistances
 using FiniteDifferences
 using LinearAlgebra
 
+using ForwardDiff
+
 const bfdm = FiniteDifferences.backward_fdm(5, 1)
 const ffdm = FiniteDifferences.forward_fdm(5, 1)
 
@@ -57,7 +59,7 @@ end
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
-                    # @test dΠ ≈ grad_fdm
+                    @test dΠ ≈ I
                 end
                 @testset "Negative definite" begin
                     v = MOD.vec_symm(-M)
@@ -65,7 +67,9 @@ end
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
-                    # @test dΠ ≈ grad_fdm
+                    if !isapprox(det(M), 0, atol=10e-6)
+                        @test all(dΠ .≈ 0)
+                    end
                 end
             end
         end
@@ -97,6 +101,15 @@ end
                         grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                         @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                         @test dΠ ≈ grad_fdm1 || dΠ ≈ grad_fdm2
+                        t = tscale
+                        xr = x / norm(x)
+                        v = vcat(t, xr)
+                        dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                        # theoretical expression for unit vector
+                        @test 2dΠ ≈ [
+                            1 xr'
+                            xr ((t + 1) * I - t * xr * xr')
+                        ]
                     end
                 end
             end

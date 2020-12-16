@@ -93,12 +93,12 @@ where
 vec(X) = (X11, X21, ..., Xk1, X22, X32, ..., Xkk)
 """
 function unvec_symm(x, dim)
-    X = zeros(dim, dim)
+    X = zeros(eltype(x), dim, dim)
     idx = 1
     for i in 1:dim
         for j in 1:i
             # @inbounds X[j,i] = X[i,j] = x[(i-1)*dim-div((i-1)*i, 2)+j]
-            @inbounds X[j,i] = X[i,j] = x[idx]
+            X[j,i] = X[i,j] = x[idx]
             idx += 1
         end
     end
