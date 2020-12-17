@@ -209,22 +209,22 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
     dim = isqrt(2n)
     X = unvec_symm(v, dim)
     λ, U = LinearAlgebra.eigen(X)
-    T = promote_type(T, Float64)
+    Tp = promote_type(T, Float64)
 
     # if all the eigenvalues are >= 0
     if all(λi ≥ zero(λi) for λi in λ)
-        return Matrix{T}(LinearAlgebra.I, n, n)
+        return Matrix{Tp}(LinearAlgebra.I, n, n)
     end
 
     # k is the number of negative eigenvalues in X minus ONE
     k = count(λi < 1e-4 for λi in λ)
 
-    y = zeros(T, n)
-    D = zeros(T, n, n)
+    y = zeros(Tp, n)
+    D = zeros(Tp, n, n)
 
     for idx in 1:n
         # set eigenvector
-        y[idx] = one(T)
+        y[idx] = one(Tp)
 
         # defining matrix B
         X̃ = unvec_symm(y, dim)
@@ -235,19 +235,19 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
                 if (i <= k && j <= k)
                     @inbounds B[i, j] = 0
                 elseif (i > k && j <= k)
-                    λpi = max(λ[i], zero(T))
-                    λmj = -min(λ[j], zero(T))
+                    λpi = max(λ[i], zero(Tp))
+                    λmj = -min(λ[j], zero(Tp))
                     @inbounds B[i, j] *= λpi / (λmj + λpi)
                 elseif (i <= k && j > k)
-                    λmi = -min(λ[i], zero(T))
-                    λpj = max(λ[j], zero(T))
+                    λmi = -min(λ[i], zero(Tp))
+                    λpj = max(λ[j], zero(Tp))
                     @inbounds B[i, j] *= λpj / (λmi + λpj)
                 end
             end
         end
         @inbounds D[idx, :] = vec_symm(U * B * U')
         # reset eigenvector
-        @inbounds y[idx] = zero(T)
+        @inbounds y[idx] = zero(Tp)
     end
     return D
 end
