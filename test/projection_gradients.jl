@@ -57,7 +57,7 @@ end
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
-                    # @test dΠ ≈ grad_fdm
+                    @test dΠ ≈ I
                 end
                 @testset "Negative definite" begin
                     v = MOD.vec_symm(-M)
@@ -65,7 +65,9 @@ end
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
-                    # @test dΠ ≈ grad_fdm
+                    if !isapprox(det(M), 0, atol=10e-6)
+                        @test all(dΠ .≈ 0)
+                    end
                 end
             end
         end
@@ -97,8 +99,51 @@ end
                         grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                         @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                         @test dΠ ≈ grad_fdm1 || dΠ ≈ grad_fdm2
+                        t = tscale
+                        xr = x / norm(x)
+                        v = vcat(t, xr)
+                        dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                        # theoretical expression for unit vector
+                        @test 2dΠ ≈ [
+                            1 xr'
+                            xr ((t + 1) * I - t * xr * xr')
+                        ]
                     end
                 end
+            end
+        end
+    end
+    @testset "Indefinite matrix" begin
+        s = MOI.PositiveSemidefiniteConeTriangle(2)
+        for _ in 1:Ntrials
+            # scale factor
+            f = 20 * rand() + 0.5
+            A = [
+                -f 0
+                0 f
+            ]
+            Q = [
+                1 0
+                0 -1
+            ]
+            Qi = Q'
+            Λ = Diagonal([-f, f])
+            Λp = Diagonal([0, f])
+            Q * Λ * Qi
+            @test A ≈ Q * Λ * Qi
+            v = MOD.vec_symm(A)
+            Πv = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
+            Π = MOD.unvec_symm(Πv, 2)
+            @test Π ≈ Q * Λp * Qi
+            B = [
+                0 1/2
+                1/2 1
+            ]
+            DΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), 1.0v, s)
+            for _ in 1:50
+                Xd = randn(2,2)
+                xd = MOD.vec_symm(Xd)
+                @test DΠ * xd ≈ MOD.vec_symm(Q * (B .* (Q' * Xd * Q)) * Q)
             end
         end
     end
