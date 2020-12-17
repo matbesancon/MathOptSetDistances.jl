@@ -113,4 +113,38 @@ end
             end
         end
     end
+    @testset "Indefinite matrix" begin
+        s = MOI.PositiveSemidefiniteConeTriangle(2)
+        for _ in 1:Ntrials
+            # scale factor
+            f = 20 * rand() + 0.5
+            A = [
+                -f 0
+                0 f
+            ]
+            Q = [
+                1 0
+                0 -1
+            ]
+            Qi = Q'
+            Λ = Diagonal([-f, f])
+            Λp = Diagonal([0, f])
+            Q * Λ * Qi
+            @test A ≈ Q * Λ * Qi
+            v = MOD.vec_symm(A)
+            Πv = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
+            Π = MOD.unvec_symm(Πv, 2)
+            @test Π ≈ Q * Λp * Qi
+            B = [
+                0 1/2
+                1/2 1
+            ]
+            DΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), 1.0v, s)
+            for _ in 1:50
+                Xd = randn(2,2)
+                xd = MOD.vec_symm(Xd)
+                @test DΠ * xd ≈ MOD.vec_symm(Q * (B .* (Q' * Xd * Q)) * Q)
+            end
+        end
+    end
 end

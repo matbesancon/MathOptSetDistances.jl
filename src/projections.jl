@@ -209,6 +209,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
     dim = isqrt(2n)
     X = unvec_symm(v, dim)
     λ, U = LinearAlgebra.eigen(X)
+    T = promote_type(T, Float64)
 
     # if all the eigenvalues are >= 0
     if all(λi ≥ zero(λi) for λi in λ)
