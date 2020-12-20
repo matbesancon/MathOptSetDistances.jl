@@ -185,14 +185,13 @@ function projection_gradient_on_set(::NormedEpigraphDistance{p}, v::AbstractVect
         return Matrix{T}(LinearAlgebra.I,n,n)
     elseif norm_x <= -t
         return zeros(T, n, n)
-    else
-        result = [
-            norm_x     x';
-            x          (norm_x + t)*Matrix{T}(LinearAlgebra.I,n-1,n-1) - (t/(norm_x^2))*(x*x')
-        ]
-        result /= (2 * norm_x)
-        return result
     end
+    result = [
+        norm_x     x';
+        x          (norm_x + t)*Matrix{T}(LinearAlgebra.I,n-1,n-1) - (t/(norm_x^2))*(x*x')
+    ]
+    result /= (2 * norm_x)
+    return result
 end
 
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, cone::MOI.SecondOrderCone) where {T}

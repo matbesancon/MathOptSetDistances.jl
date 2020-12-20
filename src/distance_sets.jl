@@ -68,7 +68,30 @@ function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real},
     return max(result, zero(result))
 end
 
-function distance_to_set(::DefaultDistance, v, s::Union{MOI.NormInfinityCone, MOI.NormOneCone, MOI.SecondOrderCone})
+"""
+    distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.SecondOrderCone)
+
+Composition of the projection with the p-norm.
+"""
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.SecondOrderCone) where {p}
+    _check_dimension(v, s)
+    t = v[1]
+    xs = v[2:end]
+    nx = LinearAlgebra.norm(xs, p)
+    if nx <= t
+        return zero(eltype(nx))
+    end
+    if nx <= -t
+        return sqrt(t^2 + nx^2)
+    end
+    return (nx - t) / √2
+end
+
+function distance_to_set(::DefaultDistance, v, s::MOI.SecondOrderCone)
+    return distance_to_set(NormedEpigraphDistance{2}(), v, s)
+end
+
+function distance_to_set(::DefaultDistance, v, s::Union{MOI.NormInfinityCone, MOI.NormOneCone})
     return distance_to_set(EpigraphViolationDistance(), v, s)
 end
 
