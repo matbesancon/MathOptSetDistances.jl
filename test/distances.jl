@@ -119,18 +119,50 @@ end
 
 @testset "Distance is composition of projection" begin
     for n in (1, 2, 10)
-        s = MOI.SecondOrderCone(n+1)
-        for _ in 1:10
-            x = randn(n)
-            for t in (-1, 0, 0.5, LinearAlgebra.norm(x), 2LinearAlgebra.norm(x))
-                v = vcat(t, x)
-                dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
-                dist_proj = LinearAlgebra.norm2(MOD.projection_on_set(MOD.DefaultDistance(), v, s) - v)
-                @test dist ≈ dist_proj atol=10e-5
-                if dist ≈ 0
-                    @test MOD.distance_to_set(MOD.EpigraphViolationDistance(), v, s) ≈ 0
+        @testset "Second order cone $n" begin
+            s = MOI.SecondOrderCone(n+1)
+            for _ in 1:10
+                x = randn(n)
+                for t in (-1, 0, 0.5, LinearAlgebra.norm(x), 2LinearAlgebra.norm(x))
+                    v = vcat(t, x)
+                    dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
+                    dist_proj = LinearAlgebra.norm2(MOD.projection_on_set(MOD.DefaultDistance(), v, s) - v)
+                    @test dist ≈ dist_proj atol=10e-5
+                    if dist ≈ 0
+                        @test MOD.distance_to_set(MOD.EpigraphViolationDistance(), v, s) ≈ 0
+                    end
                 end
             end
         end
-    end    
+        @testset "PSD cone $n" begin
+            s = MOI.PositiveSemidefiniteConeTriangle(n)
+            X = Matrix{Float64}(undef, n, n)
+            Xm = Matrix{Float64}(undef, n, n)
+            Xp = Matrix{Float64}(undef, n, n)
+            for _ in 1:10
+                X .= randn(n, n)
+                X .= (X .+ X')
+                v = MOD.vec_symm(X)
+                vproj = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
+                dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
+                @test LinearAlgebra.norm(v - vproj) ≈ dist atol=10e-5
+                dist1 = MOD.distance_to_set(MOD.NormedEpigraphDistance{1}(), v, s)
+                @test LinearAlgebra.norm(v - vproj, 1) ≈ dist1 atol=10e-5
+                λ = LinearAlgebra.eigvals(X)
+                if λ[1] >= 0
+                    Xm = X - (λ[1] + λ[end])/2 * LinearAlgebra.I
+                    v = MOD.vec_symm(Xm)
+                    vproj = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
+                    dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
+                    @test LinearAlgebra.norm(v - vproj) ≈ dist atol=10e-5
+                elseif λ[end] <= 0
+                    Xp = X + (λ[1] + λ[end])/2 * LinearAlgebra.I
+                    v = MOD.vec_symm(Xp)
+                    vproj = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
+                    dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
+                    @test LinearAlgebra.norm(v - vproj) ≈ dist atol=10e-5
+                end
+            end
+        end
+    end
 end
