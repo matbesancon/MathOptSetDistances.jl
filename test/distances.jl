@@ -127,6 +127,9 @@ end
                 dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
                 dist_proj = LinearAlgebra.norm2(MOD.projection_on_set(MOD.DefaultDistance(), v, s) - v)
                 @test dist ≈ dist_proj atol=10e-5
+                if dist ≈ 0
+                    @test MOD.distance_to_set(MOD.EpigraphViolationDistance(), v, s) ≈ 0
+                end
             end
         end
     end    
