@@ -53,7 +53,7 @@ end
     output_1 = MOD.projection_on_set(DD, v1, c1)
     output_2 = MOD.projection_on_set(DD, v2, c2)
     output_joint = MOD.projection_on_set(DD, [v1, v2], [c1, c2])
-    @test output_joint' ≈ [output_1' output_2']
+    @test output_joint ≈ [output_1; output_2]
 end
 
 @testset "Non-trivial Block projection gradient" begin
