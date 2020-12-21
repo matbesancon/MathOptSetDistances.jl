@@ -17,5 +17,6 @@ New sets should implement at least `set_distance(::DefaultDistance, v::V, s::MyS
 
 ## Special matrix types
 
-Given the specific sparsity structure of the gradients, they might return
-non-standard matrices including `FillArrays`, sparse arrays or `LinearAlgebra.Diagonal`.
+When some gradients or projections have structural zeros (sparsity patterns),
+they can and should return non-standard matrices including `FillArrays` `Zeros, Eyes, Ones, Fill`,
+sparse arrays and `LinearAlgebra.Diagonal`.
