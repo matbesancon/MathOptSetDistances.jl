@@ -12,31 +12,39 @@ using Random
 # avoid random finite diff fails because of rounding
 Random.seed!(42)
 
-@testset "rrules multivariate" begin
-    for n in (1, 2, 10)
-        x = randn(n)
-        s = MOI.Reals(n)
-        y = MOD.projection_on_set(MOD.DefaultDistance(), x, s)
-        dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), x, s)
-        for _ in 1:10
-            xb = ChainRulesTestUtils.rand_tangent(x)
-            yb = ChainRulesTestUtils.rand_tangent(y)
+"""
+Used to test all distances where the set does not take differentiable parameters.
+"""
+function test_rrule_analytical(x, s; distance = MOD.DefaultDistance(), ntrials = 10, rng=Random.GLOBAL_RNG, atol=1e-4,rtol=1e-4, test_fdiff=true)
+    y = MOD.projection_on_set(distance, x, s)
+    dΠ = MOD.projection_gradient_on_set(distance, x, s)
+    (yprimal, pullback) = CRC.rrule(MOD.projection_on_set, MOD.DefaultDistance(), x, s)
+    @test yprimal ≈ y
+    for _ in 1:ntrials
+        xb = randn(rng, length(x))
+        yb = randn(rng, length(x))
+        (_, _, Δx, _) = pullback(yb)
+        @test Δx ≈ dΠ' * yb
+        if test_fdiff
             ChainRulesTestUtils.rrule_test(
                 MOD.projection_on_set,
                 yb,
                 (MOD.DefaultDistance(), nothing),
                 (x, xb),
                 (s, nothing),
+                atol=atol,rtol=rtol
             )
-            (yprimal, pullback) = CRC.rrule(MOD.projection_on_set, MOD.DefaultDistance(), x, s)
-            @test yprimal ≈ y
-            (_, _, Δx, _) = pullback(yb)
-            @test Δx ≈ dΠ' * yb
         end
+    end
+end
+
+@testset "rrules multivariate" begin
+    for n in (1, 2, 10)
+        x = randn(n)
+        s = MOI.Reals(n)
+        test_rrule_analytical(x, s, atol=1e-5, rtol=1e-5)
         s = MOI.Zeros(n)
-        y = MOD.projection_on_set(MOD.DefaultDistance(), x, s)
-        yb = ChainRulesTestUtils.rand_tangent(y)
-        xb = ChainRulesTestUtils.rand_tangent(x)
+        test_rrule_analytical(x, s, atol=1e-5, rtol=1e-5, test_fdiff=false)
         # requires FillArrays.Zero handling
         # still broken?
         @test_broken ChainRulesTestUtils.rrule_test(
@@ -46,54 +54,35 @@ Random.seed!(42)
             (x, xb),
             (s, nothing),
         )
-        for s in (MOI.Nonpositives(n), MOI.Nonnegatives(n))
-            y = MOD.projection_on_set(MOD.DefaultDistance(), x, s)
-            yb = ChainRulesTestUtils.rand_tangent(y)
-            xb = ChainRulesTestUtils.rand_tangent(x)
-            ChainRulesTestUtils.rrule_test(
-                MOD.projection_on_set,
-                yb,
-                (MOD.DefaultDistance(), nothing),
-                (x, xb),
-                (s, nothing),
-                atol=1e-4,
-            )
+        @testset "Orthant $s" for s in (MOI.Nonpositives(n), MOI.Nonnegatives(n))
+            test_rrule_analytical(x, s)
         end
         @testset "SOC $n" begin
             s = MOI.SecondOrderCone(n+1)
             for _ in 1:10
-                v = 10 * randn(n+1)
-                vb = ChainRulesTestUtils.rand_tangent(v)
-                if norm(v[2:end]) ≈ v[1]
+                x = 10 * randn(n+1)
+                if norm(x[2:end]) ≈ x[1]
                     if rand() > 0.8
-                        v[1] *= 2
+                        x[1] *= 2
                     else
-                        v[1] /= 2
+                        x[1] /= 2
                     end
                 end
-                y = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
-                yb = ChainRulesTestUtils.rand_tangent(y)
-                ChainRulesTestUtils.rrule_test(
-                    MOD.projection_on_set,
-                    yb,
-                    (MOD.DefaultDistance(), nothing),
-                    (v, vb),
-                    (s, nothing),
-                    atol=1e-4,
-                )
+                test_rrule_analytical(x, s)
             end
         end
     end
 end
 
 @testset "rrules univariate" begin
+    # note: we do not use the generic test function since sets have derivatives 
     @testset "Scalar $ST" for ST in (MOI.EqualTo, MOI.LessThan, MOI.GreaterThan)
         for _ in 1:10
             s = ST(10 * randn())
             x = 10 * randn()
             if isapprox(x, MOI.constant(s), atol=1e-5)
                 x *= 2
-            end 
+            end
             xb = ChainRulesTestUtils.rand_tangent(x)
             y = MOD.projection_on_set(MOD.DefaultDistance(), x, s)
             yb = ChainRulesTestUtils.rand_tangent(y)
