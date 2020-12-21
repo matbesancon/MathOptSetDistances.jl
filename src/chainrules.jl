@@ -71,7 +71,7 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
     t = v[1]
     x = v[2:end]
     norm_x = LinearAlgebra.norm2(x)
-    function pullback(Δv)
+    function projection_on_set_pullback(Δv)
         Δt = Δv[1]
         Δx = Δv[2:end]
         v̄ = zeros(eltype(Δv), length(Δv))
@@ -94,5 +94,5 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
         end
         return result_tuple
     end
-    return (vproj, pullback)
+    return (vproj, projection_on_set_pullback)
 end

@@ -56,7 +56,7 @@ Random.seed!(42)
                 (MOD.DefaultDistance(), nothing),
                 (x, xb),
                 (s, nothing),
-                atol=10e-5,
+                atol=1e-4,
             )
         end
         @testset "SOC $n" begin
@@ -79,7 +79,7 @@ Random.seed!(42)
                     (MOD.DefaultDistance(), nothing),
                     (v, vb),
                     (s, nothing),
-                    atol=10e-5,
+                    atol=1e-4,
                 )
             end
         end
@@ -91,7 +91,7 @@ end
         for _ in 1:10
             s = ST(10 * randn())
             x = 10 * randn()
-            if isapprox(x, MOI.constant(s), atol=10e-5)
+            if isapprox(x, MOI.constant(s), atol=1e-5)
                 x *= 2
             end 
             xb = ChainRulesTestUtils.rand_tangent(x)
@@ -104,7 +104,7 @@ end
                 (MOD.DefaultDistance(), nothing),
                 (x, xb),
                 (s, sb),
-                atol=10e-5,
+                atol=1e-4,
             )
         end
     end
