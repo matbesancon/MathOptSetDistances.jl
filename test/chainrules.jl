@@ -6,6 +6,10 @@ const MOD = MathOptSetDistances
 const MOI = MathOptSetDistances.MOI
 using FiniteDifferences
 using Test
+using Random
+
+# avoid random finite diff fails because of rounding
+Random.seed!(42)
 
 @testset "rrules multivariate" begin
     for n in (1, 2, 10)
