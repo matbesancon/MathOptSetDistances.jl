@@ -55,13 +55,13 @@ end
 function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::S) where {T, S <: Union{MOI.Nonnegatives, MOI.Nonpositives}}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
-        ∂v = zeros(eltype(Δvproj), length(Δvproj))
+        v̄ = zeros(eltype(Δvproj), length(Δvproj))
         for i in eachindex(Δvproj)
             if vproj[i] == v[i]
-                ∂v[i] = Δvproj[i]
+                v̄[i] = Δvproj[i]
             end
         end
-        return (ChainRulesCore.NO_FIELDS, ChainRulesCore.DoesNotExist(), ∂v, ChainRulesCore.DoesNotExist())
+        return (ChainRulesCore.NO_FIELDS, ChainRulesCore.DoesNotExist(), v̄, ChainRulesCore.DoesNotExist())
     end
     return (vproj, pullback)
 end
@@ -72,18 +72,20 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
     x = v[2:end]
     norm_x = LinearAlgebra.norm2(x)
     function pullback(Δv)
+        Δt = Δv[1]
+        Δx = Δv[2:end]
         v̄ = zeros(eltype(Δv), length(Δv))
         if norm_x ≤ t
             v̄ .= Δvproj
-            return v̄
+            return (ChainRulesCore.NO_FIELDS, ChainRulesCore.DoesNotExist(), v̄, ChainRulesCore.DoesNotExist())
         elseif norm_x ≤ -t
-            return v̄
+            return (ChainRulesCore.NO_FIELDS, ChainRulesCore.DoesNotExist(), v̄, ChainRulesCore.DoesNotExist())
         end
-        v̄[1] = inv(2norm_x) * sum(Δv[i] * v[i] for i in 2:length(v)) + Δv[1] / 2
+        v̄[1] = inv(2norm_x) * sum(Δx[i] * x[i] for i in eachindex(x)) + Δt / 2
         inv_norm = inv(2norm_x)
         dot_prod = LinearAlgebra.dot(x, Δv[2:end])
-        v̄[2:length(v)] .= inv_norm * x * Δv[1]
-        v̄[2:length(v)] .+= inv_norm * (t + norm_x) * Δv[2:end]
+        v̄[2:length(v)] .= inv_norm * x * Δt
+        v̄[2:length(v)] .+= inv_norm * (t + norm_x) * Δx
         v̄[2:length(v)] .-= inv_norm^2 * t * x * dot_prod
         return (ChainRulesCore.NO_FIELDS, ChainRulesCore.DoesNotExist(), v̄, ChainRulesCore.DoesNotExist())
     end
