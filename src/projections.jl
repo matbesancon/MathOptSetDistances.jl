@@ -20,7 +20,15 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Reals)
 end
 
 function projection_on_set(::DefaultDistance, v::T, set::MOI.EqualTo) where {T}
-    return zero(T) .+ set.value
+    return zero(T) + set.value
+end
+
+function projection_on_set(::DefaultDistance, v::T, set::MOI.LessThan) where {T}
+    return min(v, MOI.constant(set))
+end
+
+function projection_on_set(::DefaultDistance, v::T, set::MOI.GreaterThan) where {T}
+    return max(v, MOI.constant(set))
 end
 
 """
@@ -177,8 +185,15 @@ end
     projection_gradient_on_set(::DefaultDistance, v::T, ::MOI.EqualTo)
 """
 function projection_gradient_on_set(::DefaultDistance, ::T, ::MOI.EqualTo) where {T}
-    y = zeros(T, 1)
-    return reshape(y, length(y), 1)
+    return zero(T)
+end
+
+function projection_gradient_on_set(::DefaultDistance, v::T, s::MOI.LessThan) where {T}
+    return oneunit(T) * (v <= MOI.constant(s))
+end
+
+function projection_gradient_on_set(::DefaultDistance, v::T, s::MOI.GreaterThan) where {T}
+    return oneunit(T) * (v >= MOI.constant(s))
 end
 
 """

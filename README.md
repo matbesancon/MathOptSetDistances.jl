@@ -15,6 +15,15 @@ New sets should implement at least `set_distance(::DefaultDistance, v::V, s::MyS
 `projection_on_set(d::D, v, s::S)` returns the point on `S` that is closest to `v` with respect to the distance `d`.
 `projection_gradient_on_set` returns the gradient of this projection, i.e. the transpose of the Jacobian.
 
+## Gradients as ChainRules
+
+Gradients `projection_gradient_on_set` eagerly computes the full derivative matrix.
+This is often simpler to test and implement, but leads to unnecessary allocations and expensive operations.
+They are also implemented using [ChainRulesCore.jl](https://github.com/JuliaDiff/ChainRulesCore.jl)
+methods `rrule` and `frule`.
+Both methods should be implemented for each derivative and tested against `projection_gradient_on_set`
+and `FiniteDifferences.jl`.
+
 ## Special matrix types
 
 When some gradients or projections have structural zeros (sparsity patterns),
