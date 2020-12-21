@@ -94,7 +94,7 @@ end
                 (MOD.DefaultDistance(), nothing),
                 (x, xb),
                 (s, sb),
-                atol=10e-5,
+                atol=1e-4,
             )
         end
     end
