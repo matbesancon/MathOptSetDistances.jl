@@ -93,12 +93,27 @@ end
 Returns a dim-by-dim symmetric matrix corresponding to `x`.
 
 `x` is a vector of length dim*(dim + 1)/2, corresponding to a symmetric matrix
-X = [ X11 X12 ... X1k
-        X21 X22 ... X2k
-        ...
-        Xk1 Xk2 ... Xkk ],
-where
-vec(X) = (X11, X21, ..., Xk1, X22, X32, ..., Xkk)
+```
+X = [ X11  X12 ... X1k
+      X21  X22 ... X2k
+      ...
+      Xk1  Xk2 ... Xkk ],
+```
+where `vec(X) = (X11, X12, X22, X13, X23, X33, ..., Xkk)`.
+
+### Note on inner products
+
+Note that the scalar product for the symmetric matrix in its vectorized form is
+the sum of the pairwise product of the diagonal entries plus twice the sum of
+the pairwise product of the upper diagonal entries; see [p. 634, 1].
+Therefore, this transformation breaks inner products:
+```
+dot(unvec_symm(x, dim), unvec_symm(y, dim)) != dot(x, y).
+```
+
+### References
+
+[1] Boyd, S. and Vandenberghe, L.. *Convex optimization*. Cambridge university press, 2004.
 """
 function unvec_symm(x, dim)
     X = zeros(eltype(x), dim, dim)
@@ -117,7 +132,22 @@ end
     vec_symm(X)
 
 Returns a vectorized representation of a symmetric matrix `X`.
-`vec(X) = (X11, X21, ..., Xk1, X22, X32, ..., Xkk)`
+`vec(X) = (X11, X12, X22, X13, X23, X33, ..., Xkk)`
+
+### Note on inner products
+
+Note that the scalar product for the symmetric matrix in its vectorized form is
+the sum of the pairwise product of the diagonal entries plus twice the sum of
+the pairwise product of the upper diagonal entries; see [p. 634, 1].
+Therefore, this transformation breaks inner products:
+```
+dot(vec_symm(X), vec_symm(Y)) != dot(X, Y).
+```
+
+### References
+
+[1] Boyd, S. and Vandenberghe, L.. *Convex optimization*. Cambridge university press, 2004.
+
 """
 function vec_symm(X)
     return X[LinearAlgebra.tril(trues(size(X)))']

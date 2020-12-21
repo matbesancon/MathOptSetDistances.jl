@@ -251,7 +251,7 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.SOS1) wh
 end
 
 # takes in input [z, f(x)]
-function distance_to_set(d::DefaultDistance, v::AbstractVector{T}, s::MOI.IndicatorSet{A}) where {A, T <: Real}
+function distance_to_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.IndicatorSet{A}) where {A, T <: Real}
     _check_dimension(v, s)
     z = v[1]
     # inactive constraint
@@ -261,4 +261,17 @@ function distance_to_set(d::DefaultDistance, v::AbstractVector{T}, s::MOI.Indica
     return LinearAlgebra.norm2(
         (distance_to_set(d, z, MOI.ZeroOne()), distance_to_set(v[2], s.set))
     )
+end
+
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{T}, s::MOI.PositiveSemidefiniteConeTriangle) where {p, T <: Real}
+    X = unvec_symm(v, s.side_dimension)
+    λ, U = LinearAlgebra.eigen(X)
+    Tp = eltype(λ)
+    λm = -min.(λ, zero(Tp))
+    vdist = vec_symm(U * LinearAlgebra.Diagonal(λm) * U')
+    return LinearAlgebra.norm(vdist, p)
+end
+
+function distance_to_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.PositiveSemidefiniteConeTriangle) where {T <: Real}
+    return distance_to_set(NormedEpigraphDistance{2}(), v, s)
 end
