@@ -47,19 +47,24 @@ using Test
         @testset "SOC $n" begin
             s = MOI.SecondOrderCone(n+1)
             for _ in 1:10
-                x = 10 * randn(n+1)
-                if norm(x[2:end]) ≈ x[1]
-                    x[1] /= 2
+                v = 10 * randn(n+1)
+                vb = ChainRulesTestUtils.rand_tangent(v)
+                if norm(v[2:end]) ≈ v[1]
+                    if rand() > 0.8
+                        v[1] *= 2
+                    else
+                        v[1] /= 2
+                    end
                 end
-                y = MOD.projection_on_set(MOD.DefaultDistance(), x, s)
+                y = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
                 yb = ChainRulesTestUtils.rand_tangent(y)
                 ChainRulesTestUtils.rrule_test(
                     MOD.projection_on_set,
                     yb,
                     (MOD.DefaultDistance(), nothing),
-                    (x, xb),
+                    (v, vb),
                     (s, nothing),
-                    atol=10e-6,
+                    atol=10e-5,
                 )
             end
         end

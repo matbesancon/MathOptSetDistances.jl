@@ -75,19 +75,24 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
         Δt = Δv[1]
         Δx = Δv[2:end]
         v̄ = zeros(eltype(Δv), length(Δv))
+        result_tuple = (ChainRulesCore.NO_FIELDS, ChainRulesCore.DoesNotExist(), v̄, ChainRulesCore.DoesNotExist())
         if norm_x ≤ t
-            v̄ .= Δvproj
-            return (ChainRulesCore.NO_FIELDS, ChainRulesCore.DoesNotExist(), v̄, ChainRulesCore.DoesNotExist())
+            v̄ .= Δv
+            return result_tuple
         elseif norm_x ≤ -t
-            return (ChainRulesCore.NO_FIELDS, ChainRulesCore.DoesNotExist(), v̄, ChainRulesCore.DoesNotExist())
+            return result_tuple
         end
-        v̄[1] = inv(2norm_x) * sum(Δx[i] * x[i] for i in eachindex(x)) + Δt / 2
         inv_norm = inv(2norm_x)
-        dot_prod = LinearAlgebra.dot(x, Δv[2:end])
-        v̄[2:length(v)] .= inv_norm * x * Δt
-        v̄[2:length(v)] .+= inv_norm * (t + norm_x) * Δx
-        v̄[2:length(v)] .-= inv_norm^2 * t * x * dot_prod
-        return (ChainRulesCore.NO_FIELDS, ChainRulesCore.DoesNotExist(), v̄, ChainRulesCore.DoesNotExist())
+        v̄[1] = inv_norm * sum(Δx[i] * x[i] for i in eachindex(x)) + Δt / 2
+        dot_prod = LinearAlgebra.dot(x, Δx)
+        inv_sq = inv(norm_x^2)
+        cons_mul_last = inv_norm * inv_sq * t * x ⋅ Δx
+        for i in eachindex(x)
+            v̄[i+1] = inv_norm * Δt * x[i]
+            v̄[i+1] += inv_norm * (t + norm_x) * Δx[i]
+            v̄[i+1] -= cons_mul_last * x[i]
+        end
+        return result_tuple
     end
     return (vproj, pullback)
 end
