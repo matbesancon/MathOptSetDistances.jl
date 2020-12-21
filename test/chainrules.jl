@@ -81,7 +81,7 @@ end
         for _ in 1:10
             s = ST(10 * randn())
             x = 10 * randn()
-            if isapprox(x, MOI.constant(s), atol=10e-5)
+            if isapprox(x, MOI.constant(s), atol=1e-5)
                 x *= 2
             end 
             xb = ChainRulesTestUtils.rand_tangent(x)
