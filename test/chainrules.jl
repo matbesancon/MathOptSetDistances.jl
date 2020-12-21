@@ -1,4 +1,5 @@
 using ChainRulesCore
+const CRC = ChainRulesCore
 using ChainRulesTestUtils
 
 import MathOptSetDistances
@@ -14,20 +15,28 @@ Random.seed!(42)
 @testset "rrules multivariate" begin
     for n in (1, 2, 10)
         x = randn(n)
-        xb = ChainRulesTestUtils.rand_tangent(x)
         s = MOI.Reals(n)
         y = MOD.projection_on_set(MOD.DefaultDistance(), x, s)
-        yb = ChainRulesTestUtils.rand_tangent(y)
-        ChainRulesTestUtils.rrule_test(
-            MOD.projection_on_set,
-            yb,
-            (MOD.DefaultDistance(), nothing),
-            (x, xb),
-            (s, nothing),
-        )
+        dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), x, s)
+        for _ in 1:10
+            xb = ChainRulesTestUtils.rand_tangent(x)
+            yb = ChainRulesTestUtils.rand_tangent(y)
+            ChainRulesTestUtils.rrule_test(
+                MOD.projection_on_set,
+                yb,
+                (MOD.DefaultDistance(), nothing),
+                (x, xb),
+                (s, nothing),
+            )
+            (yprimal, pullback) = CRC.rrule(MOD.projection_on_set, MOD.DefaultDistance(), x, s)
+            @test yprimal ≈ y
+            (_, _, Δx, _) = pullback(yb)
+            @test Δx ≈ dΠ' * yb
+        end
         s = MOI.Zeros(n)
         y = MOD.projection_on_set(MOD.DefaultDistance(), x, s)
         yb = ChainRulesTestUtils.rand_tangent(y)
+        xb = ChainRulesTestUtils.rand_tangent(x)
         # requires FillArrays.Zero handling
         # still broken?
         @test_broken ChainRulesTestUtils.rrule_test(
@@ -40,6 +49,7 @@ Random.seed!(42)
         for s in (MOI.Nonpositives(n), MOI.Nonnegatives(n))
             y = MOD.projection_on_set(MOD.DefaultDistance(), x, s)
             yb = ChainRulesTestUtils.rand_tangent(y)
+            xb = ChainRulesTestUtils.rand_tangent(x)
             ChainRulesTestUtils.rrule_test(
                 MOD.projection_on_set,
                 yb,
