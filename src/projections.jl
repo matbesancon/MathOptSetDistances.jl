@@ -185,8 +185,15 @@ end
     projection_gradient_on_set(::DefaultDistance, v::T, ::MOI.EqualTo)
 """
 function projection_gradient_on_set(::DefaultDistance, ::T, ::MOI.EqualTo) where {T}
-    y = zeros(T, 1)
-    return reshape(y, length(y), 1)
+    return zero(T)
+end
+
+function projection_gradient_on_set(::DefaultDistance, v::T, s::MOI.LessThan) where {T}
+    return oneunit(T) * (v <= MOI.constant(s))
+end
+
+function projection_gradient_on_set(::DefaultDistance, v::T, s::MOI.GreaterThan) where {T}
+    return oneunit(T) * (v >= MOI.constant(s))
 end
 
 """

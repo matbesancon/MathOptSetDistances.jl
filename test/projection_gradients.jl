@@ -11,6 +11,9 @@ using LinearAlgebra
 const bfdm = FiniteDifferences.backward_fdm(5, 1)
 const ffdm = FiniteDifferences.forward_fdm(5, 1)
 
+"""
+A multivariate Gaussian generator without points too close to 0
+"""
 function safe_randn(n)
     v = 2 * randn(n)
     for i in eachindex(v)
@@ -145,6 +148,19 @@ end
                 xd = MOD.vec_symm(Xd)
                 @test DΠ * xd ≈ MOD.vec_symm(Q * (B .* (Q' * Xd * Q)) * Q)
             end
+        end
+    end
+    @testset "Scalar $ST" for ST in (MOI.LessThan, MOI.GreaterThan, MOI.EqualTo)
+        s = ST(10 * randn())
+        for v in 1:Ntrials
+            v = randn()
+            while v ≈ MOI.constant(s)
+                v += 2 * randn()
+            end
+            dfor = ffdm(x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)
+            dback = bfdm(x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)
+            dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+            @test ≈(dfor, dΠ, atol=1e-5) || ≈(dback, dΠ, atol=1e-5)
         end
     end
 end
