@@ -17,7 +17,7 @@ end
 
 function constraint_violation_report(model::MOI.ModelLike;
     varval::Function = variable_primal(model),
-    distance_map::Dict = Dict(),
+    distance_map::AbstractDict = Dict(),
     options = FeasibilityCheckerOptions())
 
     largest, vec = constraint_violation(model, varval = varval, distance_map = distance_map)
