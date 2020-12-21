@@ -42,6 +42,7 @@ using Test
                 (MOD.DefaultDistance(), nothing),
                 (x, xb),
                 (s, nothing),
+                atol=10e-6,
             )
         end
         @testset "SOC $n" begin
