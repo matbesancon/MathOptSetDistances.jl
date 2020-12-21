@@ -69,7 +69,7 @@ Random.seed!(42)
                     (MOD.DefaultDistance(), nothing),
                     (v, vb),
                     (s, nothing),
-                    atol=10e-5,
+                    atol=1e-4,
                 )
             end
         end
