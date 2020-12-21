@@ -46,7 +46,7 @@ Random.seed!(42)
                 (MOD.DefaultDistance(), nothing),
                 (x, xb),
                 (s, nothing),
-                atol=10e-5,
+                atol=1e-4,
             )
         end
         @testset "SOC $n" begin
