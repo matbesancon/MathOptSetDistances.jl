@@ -20,7 +20,15 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Reals)
 end
 
 function projection_on_set(::DefaultDistance, v::T, set::MOI.EqualTo) where {T}
-    return zero(T) .+ set.value
+    return zero(T) + set.value
+end
+
+function projection_on_set(::DefaultDistance, v::T, set::MOI.LessThan) where {T}
+    return min(v, MOI.constant(set))
+end
+
+function projection_on_set(::DefaultDistance, v::T, set::MOI.GreaterThan) where {T}
+    return max(v, MOI.constant(set))
 end
 
 """
