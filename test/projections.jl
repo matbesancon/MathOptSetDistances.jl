@@ -11,10 +11,19 @@ const DD = MOD.DefaultDistance()
 end
 
 @testset "Test projection distance on scalar sets" begin
-    v = rand()
-    for s in (MOI.EqualTo(v), )
-        πv = MOD.projection_on_set(DD, v, s)
-        @test MOD.distance_to_set(DD, πv, s) ≈ 0 atol=eps(Float64)
+    v = 5 * randn()
+    for s in (MOI.EqualTo(v), MOI.LessThan(v), MOI.GreaterThan(v))
+        @test MOD.distance_to_set(DD, v, s) ≈ 0 atol=eps(Float64)
+        @test MOD.projection_on_set(DD, v, s) ≈ v
+        vm = -v
+        πvm = MOD.projection_on_set(DD, vm, s)
+        if vm < 0 && !isa(s, MOI.LessThan)
+            @test MOD.distance_to_set(DD, vm, s) > 0
+            @test abs(vm - πvm) ≈ MOD.distance_to_set(DD, vm, s)
+        elseif vm > 0 && !isa(s, MOI.GreaterThan)
+            @test MOD.distance_to_set(DD, vm, s) > 0
+            @test abs(vm - πvm) ≈ MOD.distance_to_set(DD, vm, s)
+        end
     end
 end
 
@@ -46,15 +55,14 @@ end
 end
 
 @testset "Non-trivial joint projection" begin
+    c2 = MOI.SecondOrderCone(5)
     v1 = rand(Float64, 10)
     v2 = rand(Float64, 5)
     c1 = MOI.PositiveSemidefiniteConeTriangle(5)
-    c2 = MOI.SecondOrderCone(5)
-
     output_1 = MOD.projection_on_set(DD, v1, c1)
     output_2 = MOD.projection_on_set(DD, v2, c2)
     output_joint = MOD.projection_on_set(DD, [v1, v2], [c1, c2])
-    @test output_joint' ≈ [output_1' output_2']
+    @test output_joint ≈ [output_1; output_2]
 end
 
 @testset "Non-trivial Block projection gradient" begin

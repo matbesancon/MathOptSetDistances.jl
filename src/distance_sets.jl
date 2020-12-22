@@ -68,7 +68,30 @@ function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real},
     return max(result, zero(result))
 end
 
-function distance_to_set(::DefaultDistance, v, s::Union{MOI.NormInfinityCone, MOI.NormOneCone, MOI.SecondOrderCone})
+"""
+    distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.SecondOrderCone)
+
+Composition of the projection with the p-norm.
+"""
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.SecondOrderCone) where {p}
+    _check_dimension(v, s)
+    t = v[1]
+    xs = v[2:end]
+    nx = LinearAlgebra.norm(xs, p)
+    if nx <= t
+        return zero(eltype(nx))
+    end
+    if nx <= -t
+        return sqrt(t^2 + nx^2)
+    end
+    return (nx - t) / √2
+end
+
+function distance_to_set(::DefaultDistance, v, s::MOI.SecondOrderCone)
+    return distance_to_set(NormedEpigraphDistance{2}(), v, s)
+end
+
+function distance_to_set(::DefaultDistance, v, s::Union{MOI.NormInfinityCone, MOI.NormOneCone})
     return distance_to_set(EpigraphViolationDistance(), v, s)
 end
 
@@ -228,7 +251,7 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.SOS1) wh
 end
 
 # takes in input [z, f(x)]
-function distance_to_set(d::DefaultDistance, v::AbstractVector{T}, s::MOI.IndicatorSet{A}) where {A, T <: Real}
+function distance_to_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.IndicatorSet{A}) where {A, T <: Real}
     _check_dimension(v, s)
     z = v[1]
     # inactive constraint
@@ -238,4 +261,17 @@ function distance_to_set(d::DefaultDistance, v::AbstractVector{T}, s::MOI.Indica
     return LinearAlgebra.norm2(
         (distance_to_set(d, z, MOI.ZeroOne()), distance_to_set(v[2], s.set))
     )
+end
+
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{T}, s::MOI.PositiveSemidefiniteConeTriangle) where {p, T <: Real}
+    X = unvec_symm(v, s.side_dimension)
+    λ, U = LinearAlgebra.eigen(X)
+    Tp = eltype(λ)
+    λm = -min.(λ, zero(Tp))
+    vdist = vec_symm(U * LinearAlgebra.Diagonal(λm) * U')
+    return LinearAlgebra.norm(vdist, p)
+end
+
+function distance_to_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.PositiveSemidefiniteConeTriangle) where {T <: Real}
+    return distance_to_set(NormedEpigraphDistance{2}(), v, s)
 end

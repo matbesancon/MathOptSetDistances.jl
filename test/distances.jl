@@ -42,6 +42,8 @@
 
         vko_soc = vcat(-2, x)
         @test MOD.distance_to_set(MOD.DefaultDistance(), vko_soc, MOI.SecondOrderCone(n+1) ) ≈ 2 + LinearAlgebra.norm2(x)
+        vko_soc = vcat(-1.5 * tvalid, x)
+        @test MOD.distance_to_set(MOD.DefaultDistance(), vko_soc, MOI.SecondOrderCone(n+1)) ≈ sqrt(9/4 * n + LinearAlgebra.norm(x)^2)
 
         t_ko_rot = u_ko_rot = LinearAlgebra.norm2(x) / 2
         vko_roc = vcat(t_ko_rot, u_ko_rot, x)
@@ -60,7 +62,7 @@
         @test MOD.distance_to_set(MOD.DefaultDistance(), vcat(t / 2, vcat(x, -1)), MOI.GeometricMeanCone(n+2)) > 0
         @test MOD.distance_to_set(MOD.DefaultDistance(), vcat(t / 2, -x), MOI.GeometricMeanCone(n+1)) > 0
     end
-    
+
     @testset "Exponential and power cones" begin
         for _ in 1:30
             (x, y, z) = rand(3)
@@ -78,7 +80,6 @@
                 elseif u < 0
                     @test MOD.distance_to_set(MOD.DefaultDistance(), [u, v, w], MOI.DualExponentialCone()) ≈ -u*exp(v/u) - ℯ * w
                 end
-                
             end
             (x, y) = randn(2)
             if x < 0 || y < 0
@@ -94,7 +95,6 @@
                     @test MOD.distance_to_set(MOD.DefaultDistance(), [x, y, 3r], MOI.PowerCone(e)) ≈ MOD.distance_to_set(MOD.DefaultDistance(), [x, y, -3r], MOI.PowerCone(e)) > 0
                 end
             end
-    
             (u, v, w) = 10 * rand(3)
             e = rand()
             if 0 < e < 1 # avoid exponents of negatives
@@ -103,7 +103,7 @@
                 @test MOD.distance_to_set(MOD.DefaultDistance(), [u, v, 1 + u^e * v^(1-e) / (e^e * (1-e)^(1-e))], MOI.DualPowerCone(e)) ≈ 1
             end
         end
-    end    
+    end
 end
 
 struct DummyDistance <: MOD.AbstractDistance end
@@ -116,6 +116,57 @@ MOD.distance_to_set(::DummyDistance, v, s) = MOD.distance_to_set(MOD.DefaultDist
         for s in (MOI.Reals(n), MOI.Zeros(n), MOI.Nonnegatives(n), MOI.Nonpositives(n))
             @test MOD.distance_to_set(MOD.DefaultDistance(), v, MOI.Reals(n)) ≈ 2 * MOD.distance_to_set(DummyDistance(), v, MOI.Reals(n)) atol=eps(Float64)
             @test MOD.distance_to_set(MOD.DefaultDistance(), -v, MOI.Reals(n)) ≈ 2 * MOD.distance_to_set(DummyDistance(), -v, MOI.Reals(n)) atol=eps(Float64)
+        end
+    end
+end
+
+
+@testset "Distance is composition of projection" begin
+    for n in (1, 2, 10)
+        @testset "Second order cone $n" begin
+            s = MOI.SecondOrderCone(n+1)
+            for _ in 1:10
+                x = randn(n)
+                for t in (-1, 0, 0.5, LinearAlgebra.norm(x), 2LinearAlgebra.norm(x))
+                    v = vcat(t, x)
+                    dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
+                    dist_proj = LinearAlgebra.norm2(MOD.projection_on_set(MOD.DefaultDistance(), v, s) - v)
+                    @test dist ≈ dist_proj atol=10e-5
+                    if dist ≈ 0
+                        @test MOD.distance_to_set(MOD.EpigraphViolationDistance(), v, s) ≈ 0
+                    end
+                end
+            end
+        end
+        @testset "PSD cone $n" begin
+            s = MOI.PositiveSemidefiniteConeTriangle(n)
+            X = Matrix{Float64}(undef, n, n)
+            Xm = Matrix{Float64}(undef, n, n)
+            Xp = Matrix{Float64}(undef, n, n)
+            for _ in 1:10
+                X .= randn(n, n)
+                X .= (X .+ X')
+                v = MOD.vec_symm(X)
+                vproj = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
+                dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
+                @test LinearAlgebra.norm(v - vproj) ≈ dist atol=10e-5
+                dist1 = MOD.distance_to_set(MOD.NormedEpigraphDistance{1}(), v, s)
+                @test LinearAlgebra.norm(v - vproj, 1) ≈ dist1 atol=10e-5
+                λ = LinearAlgebra.eigvals(X)
+                if λ[1] >= 0
+                    Xm = X - (λ[1] + λ[end])/2 * LinearAlgebra.I
+                    v = MOD.vec_symm(Xm)
+                    vproj = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
+                    dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
+                    @test LinearAlgebra.norm(v - vproj) ≈ dist atol=10e-5
+                elseif λ[end] <= 0
+                    Xp = X + (λ[1] + λ[end])/2 * LinearAlgebra.I
+                    v = MOD.vec_symm(Xp)
+                    vproj = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
+                    dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
+                    @test LinearAlgebra.norm(v - vproj) ≈ dist atol=10e-5
+                end
+            end
         end
     end
 end
