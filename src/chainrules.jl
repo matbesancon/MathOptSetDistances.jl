@@ -96,3 +96,34 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
     end
     return (vproj, projection_on_set_pullback)
 end
+
+function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.PositiveSemidefiniteConeTriangle) where {T}
+    dim = isqrt(2*length(v))
+    X = unvec_symm(v, dim)
+    (λ, U) = LinearAlgebra.eigen(X)
+    λmin, λmax = extrema(λ)
+    if λmin >= 0
+        return (v, Δv)
+    end
+    if λmax <= 0
+        # v zero vector
+        return (0 * v, 0 * Δv)
+    end
+    λp = max.(0, λ)
+    vproj = vec_symm(U * Diagonal(λp) * U')
+    k = count(λi < 1e-4 for λi in λ)
+    # TODO avoid full matrix materialize
+    B = zeros(eltype(λ), dim, dim)
+    for i in 1:dim, j in 1:dim
+        if i > k && j > k
+            B[i,j] = 1
+        elseif i > k
+            B[i,j] = λp[i] / (λp[i] - min(λ[j], 0))
+        elseif j > k
+            B[i,j] = λp[j] / (λp[j] - min(λ[i], 0))
+        end
+    end
+    M = U * (B .* (U' * unvec_symm(Δv, dim) * U)) * U'
+    Δvproj = vec_symm(M)
+    return (vproj, Δvproj)
+end
