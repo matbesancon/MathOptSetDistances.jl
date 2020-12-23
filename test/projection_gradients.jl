@@ -11,6 +11,9 @@ using LinearAlgebra
 const bfdm = FiniteDifferences.backward_fdm(5, 1)
 const ffdm = FiniteDifferences.forward_fdm(5, 1)
 
+import ChainRulesCore
+const CRC = ChainRulesCore
+
 """
 A multivariate Gaussian generator without points too close to 0
 """
@@ -118,36 +121,39 @@ end
     end
     @testset "Indefinite matrix" begin
         s = MOI.PositiveSemidefiniteConeTriangle(2)
-        for _ in 1:Ntrials
+        Q = [
+            1 0
+            0 -1
+        ]
+        Qi = Q'
+        B = [
+            0 1/2
+            1/2 1
+        ]
+        for _ in 1:5
             # scale factor
-            f = 20 * rand() + 0.5
+            f = 20 * rand() + 5
             A = [
                 -f 0
                 0 f
             ]
-            Q = [
-                1 0
-                0 -1
-            ]
-            Qi = Q'
             Λ = Diagonal([-f, f])
             Λp = Diagonal([0, f])
-            Q * Λ * Qi
             @test A ≈ Q * Λ * Qi
             v = MOD.vec_symm(A)
             Πv = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
             Π = MOD.unvec_symm(Πv, 2)
             @test Π ≈ Q * Λp * Qi
-            B = [
-                0 1/2
-                1/2 1
-            ]
-            DΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), 1.0v, s)
-            for _ in 1:50
+            DΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+            # directional derivative
+            for _ in 1:Ntrials
                 Xd = randn(2,2)
                 xd = MOD.vec_symm(Xd)
-                @test DΠ * xd ≈ MOD.vec_symm(Q * (B .* (Q' * Xd * Q)) * Q)
+                @test DΠ * xd ≈ MOD.vec_symm(Q * (B .* (Q' * Xd * Q)) * Q')
             end
+            grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+            grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+            @test grad_fdm1 ≈ DΠ || grad_fdm2 ≈ DΠ
         end
     end
     @testset "Scalar $ST" for ST in (MOI.LessThan, MOI.GreaterThan, MOI.EqualTo)

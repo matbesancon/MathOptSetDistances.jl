@@ -1,7 +1,7 @@
 
 using Test
 
-using MathOptSetDistances
+import MathOptSetDistances
 const MOD = MathOptSetDistances
 const MOI = MathOptSetDistances.MOI
 

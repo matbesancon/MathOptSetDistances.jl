@@ -75,7 +75,7 @@ end
 end
 
 @testset "rrules univariate" begin
-    # note: we do not use the generic test function since sets have derivatives 
+    # note: we do not use the generic test function since sets have derivatives
     @testset "Scalar $ST" for ST in (MOI.EqualTo, MOI.LessThan, MOI.GreaterThan)
         for _ in 1:10
             s = ST(10 * randn())
@@ -107,6 +107,82 @@ end
                 )
                 (_, _, Δx, _) = pullback(yb)
                 @test Δx ≈ dΠ' * yb
+            end
+        end
+    end
+end
+
+@testset "frule" begin
+    d = MOD.DefaultDistance()
+    for n in (1, 2, 10)
+        s = MOI.PositiveSemidefiniteConeTriangle(n)
+        @testset "$s" begin
+            for _ in 1:5
+                L = 3 * tril(rand(n, n))
+                M = L * L'
+                v0 = MOD.vec_symm(M)
+                v = Vector{Float64}(undef, length(v0))
+                Π = Vector{Float64}(undef, length(v0))
+                Δv = Vector{Float64}(undef, length(v0))
+                dΠ = Matrix{Float64}(undef, length(v0), length(v0))
+                @testset "Positive and negative definite" begin
+                    for _ in 1:3
+                        Δv .= ChainRulesTestUtils.rand_tangent(v)
+                        v .= v0
+                        (vproj, Δvproj) = CRC.frule((nothing, nothing, Δv, nothing), MOD.projection_on_set, d, v, s)
+                        @test Δvproj ≈ Δv
+                        @test vproj ≈ v
+                        v .= -v0
+                        dΠ .= MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                        Π .= MOD.projection_on_set(MOD.DefaultDistance(), v, s)
+                        (vproj, Δvproj) = CRC.frule((nothing, nothing, Δv, nothing), MOD.projection_on_set, d, v, s)
+                        @test dΠ * Δv ≈ Δvproj
+                        @test vproj ≈ Π
+                    end
+                end
+            end
+        end
+    end
+    @testset "Indefinite matrix" begin
+        s = MOI.PositiveSemidefiniteConeTriangle(2)
+        A = Matrix{Float64}(undef, 2, 2)
+        Π = Matrix{Float64}(undef, 2, 2)
+        v = Vector{Float64}(undef, 3)
+        DΠ = Matrix{Float64}(undef, 3, 3)
+        Xd = Matrix{Float64}(undef, 2, 2)
+        Q = [
+            1 0
+            0 -1
+        ]
+        Qi = Q'
+        B = [
+            0 1/2
+            1/2 1
+        ]
+        for _ in 1:10
+            # scale factor
+            f = 20 * rand() + 5
+            A .= [
+                -f 0
+                0 f
+            ]
+            Λ = Diagonal([-f, f])
+            Λp = Diagonal([0, f])
+            v .= MOD.vec_symm(A)
+            vproj = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
+            Π .= MOD.unvec_symm(vproj, 2)
+            @test Π ≈ Q * Λp * Qi
+            DΠ .= MOD.projection_gradient_on_set(d, v, s)
+            for _ in 1:20
+                Xd .= ChainRulesTestUtils.rand_tangent(Π)
+                xd = MOD.vec_symm(Xd)
+                dir_deriv_theo = MOD.vec_symm(
+                    Q * (B .* (Q' * Xd * Q)) * Q'
+                )
+                @test DΠ * xd ≈ dir_deriv_theo
+                (vproj_frule, Δvproj) = CRC.frule((nothing, nothing, xd, nothing), MOD.projection_on_set, d, v, s)
+                @test DΠ * xd ≈ Δvproj
+                @test vproj ≈ vproj_frule
             end
         end
     end
