@@ -149,7 +149,7 @@ dot(vec_symm(X), vec_symm(Y)) != dot(X, Y).
 
 """
 function vec_symm(X)
-    return X[LinearAlgebra.tril(trues(size(X)))']
+    return X[LinearAlgebra.triu(trues(size(X)))]
 end
 
 """
