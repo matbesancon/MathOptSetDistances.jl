@@ -67,3 +67,56 @@ end
     output_joint = MOD.projection_gradient_on_set(DD, [v1, v2], [c1, c2])
     @test output_joint ≈ BlockDiagonal([output_1, output_2])
 end
+
+
+@testset "Exponential Cone Projections" begin
+    function det_case_exp_cone(v; dual=false)
+        v = dual ? -v : v
+        if MOD._in_exp_cone(v; dual=false)
+            return 1
+        elseif MOD._in_exp_cone(-v; dual=true)
+            return 2
+        elseif v[1] <= 0 && v[2] <= 0 #TODO: threshold here??
+            return 3
+        else
+            return 4
+        end
+    end
+
+    function _test_proj_exp_cone_help(x, tol; dual=false)
+        cone = dual ? MOI.DualExponentialCone() : MOI.ExponentialCone()
+        model = Model()
+        set_optimizer(model, optimizer_with_attributes(
+            SCS.Optimizer, "eps" => 1e-10, "max_iters" => 10000, "verbose" => 0))
+        @variable(model, z[1:3])
+        @variable(model, t)
+        @objective(model, Min, t)
+        @constraint(model, sum((x-z).^2) <= t)
+        @constraint(model, z in cone)
+        optimize!(model)
+        z_star = value.(z)
+        px = MOD.projection_on_set(DD, x, cone)
+        if !isapprox(px, z_star, atol=tol)
+            error("Exp cone projection failed:\n x = $x\nMOD: $px\nJuMP: $z_star
+                   \nnorm: $(norm(px - z_star))")
+            return false
+       end
+       return true
+    end
+
+    Random.seed!(0)
+    n = 3
+    atol = 1e-7
+    case_p = zeros(4)
+    case_d = zeros(4)
+    for _ in 1:100
+        x = randn(3)
+
+        case_p[det_case_exp_cone(x; dual=false)] += 1
+        @test _test_proj_exp_cone_help(x, atol; dual=false)
+
+        case_d[det_case_exp_cone(x; dual=true)] += 1
+        @test _test_proj_exp_cone_help(x, atol; dual=true)
+    end
+    @test all(case_p .> 0) && all(case_d .> 0)
+end
