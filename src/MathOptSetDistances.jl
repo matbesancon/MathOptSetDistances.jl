@@ -4,14 +4,17 @@ import MathOptInterface
 const MOI = MathOptInterface
 using BlockDiagonals: BlockDiagonal
 import FillArrays
-import LinearAlgebra
+using LinearAlgebra
+import ChainRulesCore
+const CRC = ChainRulesCore
+import FiniteDifferences
 import NonlinearSolve
 
 export distance_to_set, projection_on_set, projection_gradient_on_set
 
-
 include("distances.jl")
 include("distance_sets.jl")
 include("projections.jl")
+include("chainrules.jl")
 
 end # module
