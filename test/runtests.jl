@@ -6,7 +6,6 @@ const MOD = MathOptSetDistances
 const MOI = MathOptSetDistances.MOI
 
 using LinearAlgebra
-using JuMP, SCS
 using Random
 import BlockDiagonals: BlockDiagonal
 
