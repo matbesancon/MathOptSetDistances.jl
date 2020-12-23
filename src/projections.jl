@@ -170,7 +170,7 @@ by Neal Parikh and Stephen Boyd.
 * [Projection, presolve in MOSEK: exponential, and power cones]
 (https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf) by Henrik Friberg
 """
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ExponentialCone) where {T}
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
     _check_dimension(v, s)
 
     if _in_exp_cone(v; dual=false)
@@ -421,8 +421,8 @@ References:
 * [Solution Refinement at Regular Points of Conic Problems](https://stanford.edu/~boyd/papers/cone_prog_refine.html)
 by Enzo Busseti, Walaa M. Moursi, and Stephen Boyd
 """
-function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ExponentialCone) where {T}
-    length(v) != 3 && throw(DimensionMismatch("Mismatch between value and set"))
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
+    _check_dimension(v, s)
     Ip(z) = z >= 0 ? 1 : 0
 
     if _in_exp_cone(v; dual=false)
