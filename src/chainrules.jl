@@ -107,7 +107,7 @@ function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::De
     end
     if λmax <= 0
         # v zero vector
-        return (false * v, false * Δv)
+        return (0 * v, 0 * Δv)
     end
     λp = max.(0, λ)
     vproj = vec_symm(U * Diagonal(λp) * U')
