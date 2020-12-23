@@ -229,6 +229,10 @@ function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
         end
     end
 
+    if !(h(lb, nothing) < 0 && h(ub, nothing) > 0)
+        error("Failure to find bracketing interval for exp cone")
+    end
+
     # Solve with Bisection
     prob = NonlinearSolve.NonlinearProblem(h, (lb, ub))
     sol = NonlinearSolve.solve(prob, NonlinearSolve.Bisection())
