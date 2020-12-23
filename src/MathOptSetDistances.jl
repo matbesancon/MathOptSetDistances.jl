@@ -5,6 +5,7 @@ const MOI = MathOptInterface
 using BlockDiagonals: BlockDiagonal
 import FillArrays
 import LinearAlgebra
+import NonlinearSolve
 
 export distance_to_set, projection_on_set, projection_gradient_on_set
 
