@@ -171,7 +171,6 @@ by Neal Parikh and Stephen Boyd.
 (https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf) by Henrik Friberg
 """
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ExponentialCone) where {T}
-    # https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf, Section 6.3
     length(v) != 3 && throw(DimensionMismatch("Mismatch between value and set"))
 
     if _in_exp_cone(v; dual=false)
