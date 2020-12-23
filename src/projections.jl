@@ -20,7 +20,15 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Reals)
 end
 
 function projection_on_set(::DefaultDistance, v::T, set::MOI.EqualTo) where {T}
-    return zero(T) .+ set.value
+    return zero(T) + set.value
+end
+
+function projection_on_set(::DefaultDistance, v::T, set::MOI.LessThan) where {T}
+    return min(v, MOI.constant(set))
+end
+
+function projection_on_set(::DefaultDistance, v::T, set::MOI.GreaterThan) where {T}
+    return max(v, MOI.constant(set))
 end
 
 """
@@ -107,12 +115,11 @@ dot(unvec_symm(x, dim), unvec_symm(y, dim)) != dot(x, y).
 
 [1] Boyd, S. and Vandenberghe, L.. *Convex optimization*. Cambridge university press, 2004.
 """
-function unvec_symm(x, dim)
+function unvec_symm(x, dim=isqrt(2length(x)))
     X = zeros(eltype(x), dim, dim)
     idx = 1
     for i in 1:dim
         for j in 1:i
-            # @inbounds X[j,i] = X[i,j] = x[(i-1)*dim-div((i-1)*i, 2)+j]
             X[j,i] = X[i,j] = x[idx]
             idx += 1
         end
@@ -142,7 +149,7 @@ dot(vec_symm(X), vec_symm(Y)) != dot(X, Y).
 
 """
 function vec_symm(X)
-    return X[LinearAlgebra.tril(trues(size(X)))']
+    return X[LinearAlgebra.triu(trues(size(X)))]
 end
 
 """
@@ -177,8 +184,15 @@ end
     projection_gradient_on_set(::DefaultDistance, v::T, ::MOI.EqualTo)
 """
 function projection_gradient_on_set(::DefaultDistance, ::T, ::MOI.EqualTo) where {T}
-    y = zeros(T, 1)
-    return reshape(y, length(y), 1)
+    return zero(T)
+end
+
+function projection_gradient_on_set(::DefaultDistance, v::T, s::MOI.LessThan) where {T}
+    return oneunit(T) * (v <= MOI.constant(s))
+end
+
+function projection_gradient_on_set(::DefaultDistance, v::T, s::MOI.GreaterThan) where {T}
+    return oneunit(T) * (v >= MOI.constant(s))
 end
 
 """
@@ -253,7 +267,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
 
     for idx in 1:n
         # set eigenvector
-        y[idx] = one(Tp)
+        y[idx] = 1
 
         # defining matrix B
         X̃ = unvec_symm(y, dim)
@@ -276,7 +290,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
         end
         @inbounds D[idx, :] = vec_symm(U * B * U')
         # reset eigenvector
-        @inbounds y[idx] = zero(Tp)
+        @inbounds y[idx] = 0
     end
     return D
 end
