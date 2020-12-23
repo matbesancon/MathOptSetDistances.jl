@@ -188,6 +188,7 @@ end
 
 function _in_exp_cone(v::AbstractVector{T}; dual=false) where {T}
     # See pg. 184 https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf
+    # TODO: Tol for == 0 to avoid denom blowing up? see case 4 in deriv
     if dual
         return (
             (v[1] == 0 && v[2] >= 0 && v[3] >= 0) ||
@@ -405,6 +406,59 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
         @inbounds y[idx] = 0
     end
     return D
+end
+
+"""
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ExponentialCone) where {T}
+
+derivative of projection of vector `v` on closure of the exponential cone,
+i.e. `cl(Kexp) = {(x,y,z) | y e^(x/y) <= z, y>0 } U {(x,y,z)| x <= 0, y = 0, z >= 0}`.
+
+References:
+* [Solution Refinement at Regular Points of Conic Problems](https://stanford.edu/~boyd/papers/cone_prog_refine.html)
+by Enzo Busseti, Walaa M. Moursi, and Stephen Boyd
+"""
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ExponentialCone) where {T}
+    length(v) != 3 && throw(DimensionMismatch("Mismatch between value and set"))
+    Ip(z) = z >= 0 ? 1 : 0
+
+    if _in_exp_cone(v; dual=false)
+        return Matrix{Float64}(I, 3, 3)
+    elseif _in_exp_cone(-v; dual=true)
+        # if in polar cone Ko = -K*
+        return zeros(3,3) #FillArrays.Zeros(3, 3)
+    elseif v[1] <= 0 && v[2] <= 0
+        return diagm([1; Ip(v[2]); Ip(v[3])])
+    else
+        z1, z2, z3 = _exp_cone_proj_case_4(v)
+        nu = z3 - v[3]
+        rs = z1/z2
+        exp_rs = exp(rs)
+
+        mat = inv([
+            1+nu*exp_rs/z2     -nu*exp_rs*rs/z2       0     exp_rs;
+            -nu*exp_rs*rs/z2   1+nu*exp_rs*rs^2/z2    0     (1-rs)*exp_rs;
+            0                  0                      1     -1
+            exp_rs             (1-rs)*exp_rs          -1    0
+        ])
+        return @view(mat[1:3,1:3])
+    end
+end
+
+"""
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
+
+derivative of projection of vector `v` on the dual exponential cone,
+i.e. `Kexp^* = {(u,v,w) | u < 0, -u*exp(v/u) <= ew } U {(u,v,w)| u == 0, v >= 0, w >= 0}`.
+
+References:
+* [Solution Refinement at Regular Points of Conic Problems]
+(https://stanford.edu/~boyd/papers/cone_prog_refine.html)
+by Enzo Busseti, Walaa M. Moursi, and Stephen Boyd
+"""
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
+    # from Moreau decomposition: x = P_K(x) + P_-K*(x)
+    return I - projection_gradient_on_set(DefaultDistance(), -v, MOI.ExponentialCone())
 end
 
 """
