@@ -1,5 +1,11 @@
 # find expression of projections on cones and their derivatives here:
 #   https://stanford.edu/~boyd/papers/pdf/cone_prog_refine.pdf
+# See also
+#   https://github.com/tjdiamandis/ConeProgramDiff.jl/blob/main/cone_ref.pdf
+#   and references therein
+const EXP_CONE_THRESH = 1e-8
+const POW_CONE_THRESH = 1e-8
+
 
 """
     projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Zeros) where {T}
@@ -143,6 +149,112 @@ dot(vec_symm(X), vec_symm(Y)) != dot(X, Y).
 """
 function vec_symm(X)
     return X[LinearAlgebra.tril(trues(size(X)))']
+end
+
+"""
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ExponentialCone) where {T}
+
+projection of vector `v` on closure of the exponential cone
+i.e. `cl(Kexp) = {(x,y,z) | y e^(x/y) <= z, y>0 } U {(x,y,z)| x <= 0, y = 0, z >= 0}`.
+
+References:
+* [Proximal Algorithms, 6.3.4](https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf)
+by Neal Parikh and Stephen Boyd.
+* [Projection, presolve in MOSEK: exponential, and power cones]
+(https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf) by Henrik Friberg
+"""
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ExponentialCone) where {T}
+    # https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf, Section 6.3
+    length(v) != 3 && throw(DimensionMismatch("Mismatch between value and set"))
+
+    if _in_exp_cone(v; dual=false)
+        return v
+    elseif _in_exp_cone(-v; dual=true)
+        # if in polar cone Ko = -K*
+        return zeros(3)
+    elseif v[1] <= 0 && v[2] <= 0
+        return [v[1]; 0.0; max(v[3],0)]
+    else
+        return _exp_cone_proj_case_4(v)
+    end
+end
+
+function _in_exp_cone(v::AbstractVector{T}; dual=false) where {T}
+    # See pg. 184 https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf
+    if dual
+        return (
+            (v[1] == 0 && v[2] >= 0 && v[3] >= 0) ||
+            (v[1] < 0 && v[1]*exp(v[2]/v[1]) + ℯ*v[3] >= EXP_CONE_THRESH)
+        )
+    else
+        return (
+            (v[1] <= 0 && v[2] == 0 && v[3] >= 0) ||
+            (v[2] > 0 && v[2] * exp(v[1] / v[2]) - v[3] <= EXP_CONE_THRESH)
+        )
+    end
+end
+
+function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
+    # https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf
+    # Thm: h(x) is smooth, strictly increasing, and changes sign on domain
+    r, s, t = v[1], v[2], v[3]
+    h(x,p) = (((x-1)*r + s) * exp(x) - (r - x*s)*exp(-x))/(x^2 - x + 1) - t
+
+    # Note: won't both be Inf by case 3 of projection
+    lb = r > 0 ? 1 - s/r : -Inf
+    ub = s > 0 ? r/s : Inf
+
+    # Deal with ±Inf bounds
+    if isinf(lb)
+        lb = min(ub-0.125, -0.125)
+        for _ in 1:10
+            h(lb, nothing) < 0 && break
+            ub = lb
+            lb *= 2
+        end
+    elseif isinf(ub)
+        ub = max(lb+0.125, 0.125)
+        for _ in 1:10
+            h(ub, nothing) > 0 && break
+            lb = ub
+            ub *= 2
+        end
+    end
+
+    # Solve with Bisection
+    prob = NonlinearSolve.NonlinearProblem(h, (lb, ub))
+    sol = NonlinearSolve.solve(prob, NonlinearSolve.Bisection())
+
+    if sol.retcode == NonlinearSolve.MAXITERS_EXCEED
+        error("Numerical error in exp cone projection")
+    elseif sol.retcode == NonlinearSolve.FLOATING_POINT_LIMIT
+        # left == mid or right == mid, and (left, right) still bracketing
+        x = (sol.left + sol.right)/2
+    elseif sol.retcode == NonlinearSolve.EXACT_SOLUTION_LEFT
+        x = sol.left
+    elseif sol.retcode == NonlinearSolve.EXACT_SOLUTION_RIGHT
+        x = sol.right
+    else
+        error("NonlinearSolve.jl retcode not recognized in exp cone")
+    end
+
+    return ((x - 1)*r + s)/(x^2 - x + 1) * [x; 1.0; exp(x)]
+end
+
+"""
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
+
+projection of vector `v` on the dual exponential cone
+i.e. `Kexp^* = {(u,v,w) | u < 0, -u*exp(v/u) <= ew } U {(u,v,w)| u == 0, v >= 0, w >= 0}`.
+
+References:
+* [Proximal Algorithms, 6.3.4](https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf)
+by Neal Parikh and Stephen Boyd.
+* [Projection, presolve in MOSEK: exponential, and power cones](https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf)
+by Henrik Friberg
+"""
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
+    return v + projection_on_set(DefaultDistance(), -v, MOI.ExponentialCone())
 end
 
 """
