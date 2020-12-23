@@ -106,8 +106,8 @@ end
         z_star = value.(z)
         px = MOD.projection_on_set(DD, x, cone)
         if !isapprox(px, z_star, atol=tol)
-            error("Exp cone projection failed:\n x = $x\nMOD: $px\nJuMP: $z_star
-                   \nnorm: $(norm(px - z_star))")
+            # error("Exp cone projection failed:\n x = $x\nMOD: $px\nJuMP: $z_star
+            #        \nnorm: $(norm(px - z_star))")
             return false
        end
        return true
