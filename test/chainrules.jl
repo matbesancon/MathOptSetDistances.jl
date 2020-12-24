@@ -115,6 +115,22 @@ end
 @testset "frule" begin
     d = MOD.DefaultDistance()
     for n in (1, 2, 10)
+        @testset "$s" for s in (MOI.Nonnegatives(n), MOI.Nonpositives(n))
+            for _ in 1:10
+                v = 50 * safe_randn(n)
+                for _ in 1:5
+                    Δv = ChainRulesTestUtils.rand_tangent(v)
+                    ChainRulesTestUtils.frule_test(
+                        MOD.projection_on_set,
+                        (MOD.DefaultDistance(), nothing),
+                        (v, Δv),
+                        (s, nothing),
+                        atol=1e-5,
+                    )
+                end
+            end
+        end
+    
         s = MOI.PositiveSemidefiniteConeTriangle(n)
         @testset "$s" begin
             for _ in 1:5
