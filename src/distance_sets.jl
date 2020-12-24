@@ -131,6 +131,11 @@ function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real},
     x = v[1]
     y = v[2]
     z = v[3]
+
+    if x <= 0 && isapprox(y, 0, atol=1e-10) && z >= 0
+        return 0.0
+    end
+
     result = y * exp(x/y) - z
     return LinearAlgebra.norm(
         (max(-y, zero(result)), max(result, zero(result))),
@@ -147,6 +152,11 @@ function distance_to_set(::NormedEpigraphDistance{p}, vs::AbstractVector{<:Real}
     u = vs[1]
     v = vs[2]
     w = vs[3]
+
+    if isapprox(u, 0, atol=1e-10) && v >= 0 && w >= 0
+        return 0.0
+    end
+
     result = -u*exp(v/u) - ℯ * w
     return LinearAlgebra.norm(
         (max(u, zero(result)), max(result, zero(result))),
