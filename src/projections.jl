@@ -1,10 +1,5 @@
 # find expression of projections on cones and their derivatives here:
 #   https://stanford.edu/~boyd/papers/pdf/cone_prog_refine.pdf
-# See also
-#   https://github.com/tjdiamandis/ConeProgramDiff.jl/blob/main/cone_ref.pdf
-#   and references therein
-const EXP_CONE_THRESH = 1e-8
-const POW_CONE_THRESH = 1e-8
 
 
 """
@@ -175,17 +170,19 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
 
     if _in_exp_cone(v; dual=false)
         return v
-    elseif _in_exp_cone(-v; dual=true)
+    end
+    if _in_exp_cone(-v; dual=true)
         # if in polar cone Ko = -K*
         return zeros(3)
-    elseif v[1] <= 0 && v[2] <= 0
-        return [v[1]; 0.0; max(v[3],0)]
-    else
-        return _exp_cone_proj_case_4(v)
     end
+    if v[1] <= 0 && v[2] <= 0
+        return [v[1]; 0.0; max(v[3],0)]
+    end
+
+    return _exp_cone_proj_case_4(v)
 end
 
-function _in_exp_cone(v::AbstractVector{T}; dual=false) where {T}
+function _in_exp_cone(v::AbstractVector{T}; dual=false, EXP_CONE_THRESH=1e-8) where {T}
     # See pg. 184 https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf
     # TODO: Tol for == 0 to avoid denom blowing up? see case 4 in deriv
     if dual
@@ -202,10 +199,10 @@ function _in_exp_cone(v::AbstractVector{T}; dual=false) where {T}
 end
 
 function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
-    # https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf
+    # Ref: https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf, p47-48
     # Thm: h(x) is smooth, strictly increasing, and changes sign on domain
     r, s, t = v[1], v[2], v[3]
-    h(x,p) = (((x-1)*r + s) * exp(x) - (r - x*s)*exp(-x))/(x^2 - x + 1) - t
+    h(x) = (((x-1)*r + s) * exp(x) - (r - x*s)*exp(-x))/(x^2 - x + 1) - t
 
     # Note: won't both be Inf by case 3 of projection
     lb = r > 0 ? 1 - s/r : -Inf
@@ -215,38 +212,28 @@ function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
     if isinf(lb)
         lb = min(ub-0.125, -0.125)
         for _ in 1:10
-            h(lb, nothing) < 0 && break
+            h(lb) < 0 && break
             ub = lb
             lb *= 2
         end
-    elseif isinf(ub)
+    end
+    if isinf(ub)
         ub = max(lb+0.125, 0.125)
         for _ in 1:10
-            h(ub, nothing) > 0 && break
+            h(ub) > 0 && break
             lb = ub
             ub *= 2
         end
     end
 
-    if !(h(lb, nothing) < 0 && h(ub, nothing) > 0)
-        error("Failure to find bracketing interval for exp cone")
+    # Check bounds
+    if !(h(lb) < 0 && h(ub) > 0)
+        error("Failure to find bracketing interval for exp cone projection.")
     end
 
-    # Solve with Bisection
-    prob = NonlinearSolve.NonlinearProblem(h, (lb, ub))
-    sol = NonlinearSolve.solve(prob, NonlinearSolve.Bisection())
-
-    if sol.retcode == NonlinearSolve.MAXITERS_EXCEED
-        error("Numerical error in exp cone projection")
-    elseif sol.retcode == NonlinearSolve.FLOATING_POINT_LIMIT
-        # left == mid or right == mid, and (left, right) still bracketing
-        x = (sol.left + sol.right)/2
-    elseif sol.retcode == NonlinearSolve.EXACT_SOLUTION_LEFT
-        x = sol.left
-    elseif sol.retcode == NonlinearSolve.EXACT_SOLUTION_RIGHT
-        x = sol.right
-    else
-        error("NonlinearSolve.jl retcode not recognized in exp cone")
+    x, code = _bisection(h, lb, ub)
+    if code == 2
+        error("Failured to solve root finding problem in exp cone projection")
     end
 
     return ((x - 1)*r + s)/(x^2 - x + 1) * [x; 1.0; exp(x)]
@@ -427,25 +414,27 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
 
     if _in_exp_cone(v; dual=false)
         return Matrix{Float64}(I, 3, 3)
-    elseif _in_exp_cone(-v; dual=true)
+    end
+    if _in_exp_cone(-v; dual=true)
         # if in polar cone Ko = -K*
         return zeros(3,3) #FillArrays.Zeros(3, 3)
-    elseif v[1] <= 0 && v[2] <= 0
-        return diagm([1; Ip(v[2]); Ip(v[3])])
-    else
-        z1, z2, z3 = _exp_cone_proj_case_4(v)
-        nu = z3 - v[3]
-        rs = z1/z2
-        exp_rs = exp(rs)
-
-        mat = inv([
-            1+nu*exp_rs/z2     -nu*exp_rs*rs/z2       0     exp_rs;
-            -nu*exp_rs*rs/z2   1+nu*exp_rs*rs^2/z2    0     (1-rs)*exp_rs;
-            0                  0                      1     -1
-            exp_rs             (1-rs)*exp_rs          -1    0
-        ])
-        return @view(mat[1:3,1:3])
     end
+    if v[1] <= 0 && v[2] <= 0
+        return diagm([1; Ip(v[2]); Ip(v[3])])
+    end
+
+    z1, z2, z3 = _exp_cone_proj_case_4(v)
+    nu = z3 - v[3]
+    rs = z1/z2
+    exp_rs = exp(rs)
+
+    mat = inv([
+        1+nu*exp_rs/z2     -nu*exp_rs*rs/z2       0     exp_rs;
+        -nu*exp_rs*rs/z2   1+nu*exp_rs*rs^2/z2    0     (1-rs)*exp_rs;
+        0                  0                      1     -1
+        exp_rs             (1-rs)*exp_rs          -1    0
+    ])
+    return @view(mat[1:3,1:3])
 end
 
 """
