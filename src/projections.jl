@@ -168,10 +168,10 @@ by Neal Parikh and Stephen Boyd.
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
     _check_dimension(v, s)
 
-    if _in_exp_cone(v; dual=false)
+    if distance_to_set(DefaultDistance(), v, MOI.ExponentialCone()) < 1e-8
         return v
     end
-    if _in_exp_cone(-v; dual=true)
+    if distance_to_set(DefaultDistance(), -v, MOI.DualExponentialCone()) < 1e-8
         # if in polar cone Ko = -K*
         return zeros(3)
     end
@@ -180,22 +180,6 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
     end
 
     return _exp_cone_proj_case_4(v)
-end
-
-function _in_exp_cone(v::AbstractVector{T}; dual=false, EXP_CONE_THRESH=1e-8) where {T}
-    # See pg. 184 https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf
-    # TODO: Tol for == 0 to avoid denom blowing up? see case 4 in deriv
-    if dual
-        return (
-            (v[1] == 0 && v[2] >= 0 && v[3] >= 0) ||
-            (v[1] < 0 && v[1]*exp(v[2]/v[1]) + ℯ*v[3] >= EXP_CONE_THRESH)
-        )
-    else
-        return (
-            (v[1] <= 0 && v[2] == 0 && v[3] >= 0) ||
-            (v[2] > 0 && v[2] * exp(v[1] / v[2]) - v[3] <= EXP_CONE_THRESH)
-        )
-    end
 end
 
 function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
@@ -412,10 +396,10 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     _check_dimension(v, s)
     Ip(z) = z >= 0 ? 1 : 0
 
-    if _in_exp_cone(v; dual=false)
+    if distance_to_set(DefaultDistance(), v, MOI.ExponentialCone()) < 1e-8
         return Matrix{Float64}(I, 3, 3)
     end
-    if _in_exp_cone(-v; dual=true)
+    if distance_to_set(DefaultDistance(), -v, MOI.DualExponentialCone()) < 1e-8
         # if in polar cone Ko = -K*
         return zeros(3,3) #FillArrays.Zeros(3, 3)
     end

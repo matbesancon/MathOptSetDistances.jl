@@ -82,9 +82,9 @@ end
 @testset "Exponential Cone Projections" begin
     function det_case_exp_cone(v; dual=false)
         v = dual ? -v : v
-        if MOD._in_exp_cone(v; dual=false)
+        if MOD.distance_to_set(DD, v, MOI.ExponentialCone()) < 1e-8
             return 1
-        elseif MOD._in_exp_cone(-v; dual=true)
+        elseif MOD.distance_to_set(DD, -v, MOI.DualExponentialCone()) < 1e-8
             return 2
         elseif v[1] <= 0 && v[2] <= 0 #TODO: threshold here??
             return 3
