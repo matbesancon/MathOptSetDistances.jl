@@ -52,6 +52,18 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v
     return (vproj, pullback)
 end
 
+function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.Nonnegatives) where {T}
+    vproj = projection_on_set(d, v, s)
+    ∂vproj = Δv .* (v .>= 0)
+    return vproj, ∂vproj
+end
+
+function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.Nonpositives) where {T}
+    vproj = projection_on_set(d, v, s)
+    ∂vproj = Δv .* (v .<= 0)
+    return vproj, ∂vproj
+end
+
 function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::S) where {T, S <: Union{MOI.Nonnegatives, MOI.Nonpositives}}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
