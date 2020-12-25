@@ -168,10 +168,10 @@ by Neal Parikh and Stephen Boyd.
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
     _check_dimension(v, s)
 
-    if distance_to_set(DefaultDistance(), v, MOI.ExponentialCone()) < 1e-8
+    if _in_exp_cone(v; dual=false)
         return v
     end
-    if distance_to_set(DefaultDistance(), -v, MOI.DualExponentialCone()) < 1e-8
+    if _in_exp_cone(-v; dual=true)
         # if in polar cone Ko = -K*
         return zeros(3)
     end
@@ -180,6 +180,20 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
     end
 
     return _exp_cone_proj_case_4(v)
+end
+
+function _in_exp_cone(v::AbstractVector{T}; dual=false, tol=1e-8) where {T}
+    if dual
+        return (
+            (isapprox(v[1], 0, atol=tol) && v[2] >= 0 && v[3] >= 0) ||
+            (v[1] < 0 && v[1]*exp(v[2]/v[1]) + ℯ*v[3] >= tol)
+        )
+    else
+        return (
+            (v[1] <= 0 && isapprox(v[2], 0, atol=tol) && v[3] >= 0) ||
+            (v[2] > 0 && v[2] * exp(v[1] / v[2]) - v[3] <= tol)
+        )
+    end
 end
 
 function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
