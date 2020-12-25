@@ -230,7 +230,7 @@ function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
     end
 
     x, code = _bisection(h, lb, ub)
-    if code == 2
+    if code > 0
         error("Failured to solve root finding problem in exp cone projection")
     end
 
