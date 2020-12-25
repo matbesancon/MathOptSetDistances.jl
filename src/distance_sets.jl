@@ -133,7 +133,7 @@ function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real},
     z = v[3]
 
     if x <= 0 && isapprox(y, 0, atol=1e-10) && z >= 0
-        return 0.0
+        return zero(eltype(v))
     end
 
     result = y * exp(x/y) - z
