@@ -173,7 +173,7 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
     end
     if _in_exp_cone(-v; dual=true)
         # if in polar cone Ko = -K*
-        return zeros(3)
+        return zeros(T, 3)
     end
     if v[1] <= 0 && v[2] <= 0
         return [v[1]; 0.0; max(v[3],0)]
