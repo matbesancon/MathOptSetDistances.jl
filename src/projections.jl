@@ -415,7 +415,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     end
     if distance_to_set(DefaultDistance(), -v, MOI.DualExponentialCone()) < 1e-8
         # if in polar cone Ko = -K*
-        return zeros(3,3) #FillArrays.Zeros(3, 3)
+        return zeros(T, 3, 3)
     end
     if v[1] <= 0 && v[2] <= 0
         return LinearAlgebra.diagm(0 => T[1, Ip(v[2]), Ip(v[3])])
