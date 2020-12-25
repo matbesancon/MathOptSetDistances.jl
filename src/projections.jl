@@ -249,8 +249,8 @@ by Neal Parikh and Stephen Boyd.
 * [Projection, presolve in MOSEK: exponential, and power cones](https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf)
 by Henrik Friberg
 """
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
-    return v + projection_on_set(DefaultDistance(), -v, MOI.ExponentialCone())
+function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
+    return v + projection_on_set(d, -v, MOI.ExponentialCone())
 end
 
 """
