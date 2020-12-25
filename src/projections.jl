@@ -411,7 +411,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     Ip(z) = z >= 0 ? 1 : 0
 
     if distance_to_set(DefaultDistance(), v, MOI.ExponentialCone()) < 1e-8
-        return Matrix{Float64}(I, 3, 3)
+        return Matrix{T}(I, 3, 3)
     end
     if distance_to_set(DefaultDistance(), -v, MOI.DualExponentialCone()) < 1e-8
         # if in polar cone Ko = -K*
