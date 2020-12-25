@@ -154,7 +154,7 @@ function distance_to_set(::NormedEpigraphDistance{p}, vs::AbstractVector{<:Real}
     w = vs[3]
 
     if isapprox(u, 0, atol=1e-10) && v >= 0 && w >= 0
-        return 0.0
+        return zero(result)
     end
 
     result = -u*exp(v/u) - ℯ * w
