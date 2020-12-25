@@ -203,10 +203,6 @@ end
                 grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                 @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                 @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
-                if !(≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol))
-                    println("v = $v")
-                    println("n1: $(norm(dΠ - grad_fdm1))\nn2: $(norm(dΠ - grad_fdm2))")
-                end
             end
 
             @testset "Dual Cone" begin
@@ -216,10 +212,6 @@ end
                 grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
                 @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                 @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
-                if !(≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol))
-                    println("v = $v")
-                    println("n1: $(norm(dΠ - grad_fdm1))\nn2: $(norm(dΠ - grad_fdm2))")
-                end
             end
         end
         @test all(case_p .> 0) && all(case_d .> 0)
