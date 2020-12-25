@@ -410,10 +410,10 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     _check_dimension(v, s)
     Ip(z) = z >= 0 ? 1 : 0
 
-    if distance_to_set(DefaultDistance(), v, MOI.ExponentialCone()) < 1e-8
+    if _in_exp_cone(v; dual=false)
         return Matrix{T}(I, 3, 3)
     end
-    if distance_to_set(DefaultDistance(), -v, MOI.DualExponentialCone()) < 1e-8
+    if _in_exp_cone(-v; dual=true)
         # if in polar cone Ko = -K*
         return zeros(T, 3, 3)
     end
@@ -432,7 +432,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         0                  0                      1     -1
         exp_rs             (1-rs)*exp_rs          -1    0
     ])
-    return @view(mat[1:3,1:3])
+    return mat[1:3,1:3]
 end
 
 """

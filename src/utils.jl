@@ -16,7 +16,7 @@ function _bisection(f, left, right; max_iters=500, tol=1e-14)
 
         # Terminate if within tol of 0; otherwise, bisect
         f_mid = f(mid)
-        if abs(f(mid)) < tol
+        if abs(f_mid) < tol
             return mid, 0
         end
         if sign(f_mid) == sign(f_left)
