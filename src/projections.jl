@@ -418,7 +418,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         return zeros(3,3) #FillArrays.Zeros(3, 3)
     end
     if v[1] <= 0 && v[2] <= 0
-        return diagm([1; Ip(v[2]); Ip(v[3])])
+        return Diagonal([1; Ip(v[2]); Ip(v[3])])
     end
 
     z1, z2, z3 = _exp_cone_proj_case_4(v)
