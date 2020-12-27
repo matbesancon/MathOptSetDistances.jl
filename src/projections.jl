@@ -1,6 +1,7 @@
 # find expression of projections on cones and their derivatives here:
 #   https://stanford.edu/~boyd/papers/pdf/cone_prog_refine.pdf
 
+
 """
     projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Zeros) where {T}
 
@@ -153,6 +154,106 @@ function vec_symm(X)
 end
 
 """
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ExponentialCone) where {T}
+
+projection of vector `v` on closure of the exponential cone
+i.e. `cl(Kexp) = {(x,y,z) | y e^(x/y) <= z, y>0 } U {(x,y,z)| x <= 0, y = 0, z >= 0}`.
+
+References:
+* [Proximal Algorithms, 6.3.4](https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf)
+by Neal Parikh and Stephen Boyd.
+* [Projection, presolve in MOSEK: exponential, and power cones]
+(https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf) by Henrik Friberg
+"""
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
+    _check_dimension(v, s)
+
+    if _in_exp_cone(v; dual=false)
+        return v
+    end
+    if _in_exp_cone(-v; dual=true)
+        # if in polar cone Ko = -K*
+        return zeros(T, 3)
+    end
+    if v[1] <= 0 && v[2] <= 0
+        return [v[1]; 0.0; max(v[3],0)]
+    end
+
+    return _exp_cone_proj_case_4(v)
+end
+
+function _in_exp_cone(v::AbstractVector{T}; dual=false, tol=1e-8) where {T}
+    if dual
+        return (
+            (isapprox(v[1], 0, atol=tol) && v[2] >= 0 && v[3] >= 0) ||
+            (v[1] < 0 && v[1]*exp(v[2]/v[1]) + ℯ*v[3] >= tol)
+        )
+    else
+        return (
+            (v[1] <= 0 && isapprox(v[2], 0, atol=tol) && v[3] >= 0) ||
+            (v[2] > 0 && v[2] * exp(v[1] / v[2]) - v[3] <= tol)
+        )
+    end
+end
+
+function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
+    # Ref: https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf, p47-48
+    # Thm: h(x) is smooth, strictly increasing, and changes sign on domain
+    r, s, t = v[1], v[2], v[3]
+    h(x) = (((x-1)*r + s) * exp(x) - (r - x*s)*exp(-x))/(x^2 - x + 1) - t
+
+    # Note: won't both be Inf by case 3 of projection
+    lb = r > 0 ? 1 - s/r : -Inf
+    ub = s > 0 ? r/s : Inf
+
+    # Deal with ±Inf bounds
+    if isinf(lb)
+        lb = min(ub-0.125, -0.125)
+        for _ in 1:10
+            h(lb) < 0 && break
+            ub = lb
+            lb *= 2
+        end
+    end
+    if isinf(ub)
+        ub = max(lb+0.125, 0.125)
+        for _ in 1:10
+            h(ub) > 0 && break
+            lb = ub
+            ub *= 2
+        end
+    end
+
+    # Check bounds
+    if !(h(lb) < 0 && h(ub) > 0)
+        error("Failure to find bracketing interval for exp cone projection.")
+    end
+
+    x, code = _bisection(h, lb, ub)
+    if code > 0
+        error("Failured to solve root finding problem in exp cone projection")
+    end
+
+    return ((x - 1)*r + s)/(x^2 - x + 1) * [x; 1.0; exp(x)]
+end
+
+"""
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
+
+projection of vector `v` on the dual exponential cone
+i.e. `Kexp^* = {(u,v,w) | u < 0, -u*exp(v/u) <= ew } U {(u,v,w)| u == 0, v >= 0, w >= 0}`.
+
+References:
+* [Proximal Algorithms, 6.3.4](https://web.stanford.edu/~boyd/papers/pdf/prox_algs.pdf)
+by Neal Parikh and Stephen Boyd.
+* [Projection, presolve in MOSEK: exponential, and power cones](https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf)
+by Henrik Friberg
+"""
+function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
+    return v + projection_on_set(d, -v, MOI.ExponentialCone())
+end
+
+"""
     projection_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet})
 
 Projection onto `sets`, a product of sets
@@ -293,6 +394,61 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
         @inbounds y[idx] = 0
     end
     return D
+end
+
+"""
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ExponentialCone) where {T}
+
+derivative of projection of vector `v` on closure of the exponential cone,
+i.e. `cl(Kexp) = {(x,y,z) | y e^(x/y) <= z, y>0 } U {(x,y,z)| x <= 0, y = 0, z >= 0}`.
+
+References:
+* [Solution Refinement at Regular Points of Conic Problems](https://stanford.edu/~boyd/papers/cone_prog_refine.html)
+by Enzo Busseti, Walaa M. Moursi, and Stephen Boyd
+"""
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
+    _check_dimension(v, s)
+    Ip(z) = z >= 0 ? 1 : 0
+
+    if _in_exp_cone(v; dual=false)
+        return Matrix{T}(I, 3, 3)
+    end
+    if _in_exp_cone(-v; dual=true)
+        # if in polar cone Ko = -K*
+        return zeros(T, 3, 3)
+    end
+    if v[1] <= 0 && v[2] <= 0
+        return LinearAlgebra.diagm(0 => T[1, Ip(v[2]), Ip(v[3])])
+    end
+
+    z1, z2, z3 = _exp_cone_proj_case_4(v)
+    nu = z3 - v[3]
+    rs = z1/z2
+    exp_rs = exp(rs)
+
+    mat = inv([
+        1+nu*exp_rs/z2     -nu*exp_rs*rs/z2       0     exp_rs;
+        -nu*exp_rs*rs/z2   1+nu*exp_rs*rs^2/z2    0     (1-rs)*exp_rs;
+        0                  0                      1     -1
+        exp_rs             (1-rs)*exp_rs          -1    0
+    ])
+    return mat[1:3,1:3]
+end
+
+"""
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
+
+derivative of projection of vector `v` on the dual exponential cone,
+i.e. `Kexp^* = {(u,v,w) | u < 0, -u*exp(v/u) <= ew } U {(u,v,w)| u == 0, v >= 0, w >= 0}`.
+
+References:
+* [Solution Refinement at Regular Points of Conic Problems]
+(https://stanford.edu/~boyd/papers/cone_prog_refine.html)
+by Enzo Busseti, Walaa M. Moursi, and Stephen Boyd
+"""
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
+    # from Moreau decomposition: x = P_K(x) + P_-K*(x)
+    return I - projection_gradient_on_set(DefaultDistance(), -v, MOI.ExponentialCone())
 end
 
 """

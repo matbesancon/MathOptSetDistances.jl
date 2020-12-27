@@ -6,6 +6,7 @@ const MOD = MathOptSetDistances
 const MOI = MathOptSetDistances.MOI
 
 using LinearAlgebra
+using Random
 import BlockDiagonals: BlockDiagonal
 
 include("distances.jl")
