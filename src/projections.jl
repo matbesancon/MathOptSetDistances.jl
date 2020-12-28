@@ -254,6 +254,78 @@ function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualE
 end
 
 """
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone) where {T}
+
+projection of vector `v` on the power cone
+i.e. `K = {(x,y,z) | x^a * y^(1-a) >= |z|, x>=0, y>=0}`.
+
+References:
+* [Differential properties of Euclidean projection onto power cone]
+(https://link.springer.com/article/10.1007/s00186-015-0514-0), Prop 2.2
+"""
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.PowerCone) where {T}
+    _check_dimension(v, s)
+
+    if _in_pow_cone(v, s)
+        return v
+    end
+    if _in_pow_cone(-v, MOI.dual_set(s))
+        # if in polar cone Ko = -K*
+        return zeros(T, 3)
+    end
+    if abs(v[3]) <= 1e-10
+        return [max(v[1],0); max(v[2],0); 0.0]
+    end
+
+    x, y, z = v
+    α = s.exponent
+    Phi_prod(xi,αi,z,r) = (xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)))
+    Phi(r) = 0.5*(Phi_prod(x,α,z,r)^α * Phi_prod(y,1-α,z,r)^(1-α)) - r
+
+    # Search for initial upper an lower bounds. Sol in set (0, |z|)
+    lb, ub = 1e-14, abs(z) - 1e-14
+    ii = 1
+    while sign(Phi(lb)) == sign(Phi(ub))
+        lb += 10^ii * 1e-14
+        ub -= 10^ii * 1e-14
+        ub < lb && error("Bound interval error")
+    end
+    r, code = _bisection(Phi, lb, ub)
+    if code == 2
+        error("Failured to solve root finding problem in power cone projection")
+    end
+
+    return [0.5*Phi_prod(x,α,z,r); 0.5*Phi_prod(y,1-α,z,r); sign(z)*r]
+end
+
+function _in_pow_cone(v::AbstractVector{T}, cone::MOI.PowerCone; tol=1e-10) where {T}
+    α = cone.exponent
+    return v[1] >= 0 && v[2] >= 0 && tol + v[1]^α * v[2]^(1-α) >= abs(v[3])
+end
+
+function _in_pow_cone(v::AbstractVector{T}, cone::MOI.DualPowerCone; tol=1e-10) where {T}
+    α = cone.exponent
+    return (
+        v[1] >= 0 && v[2] >=0 && tol + (v[1])^α * (v[2])^(1-α) >= α^α * (1-α)^(1-α) * abs(v[3])
+    )
+end
+
+"""
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone) where {T}
+
+projection of vector `v` on the dual power cone
+i.e. `K_pow^* = {(u,v,w) | (u/a)^a * (v/(1-a))^(1-a) >= |w|, u>=0, v>=0}`.
+
+References:
+* [Differential properties of Euclidean projection onto power cone]
+(https://link.springer.com/article/10.1007/s00186-015-0514-0), Prop 2.2
+"""
+function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, s::MOI.DualPowerCone) where {T}
+    return v + projection_on_set(d, -v, MOI.PowerCone(s.exponent))
+end
+
+
+"""
     projection_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet})
 
 Projection onto `sets`, a product of sets
