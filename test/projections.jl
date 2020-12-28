@@ -130,3 +130,61 @@ end
     end
     @test all(case_p .> 0) && all(case_d .> 0)
 end
+
+@testset "Power Cone Projections" begin
+    function det_case_pow_cone(x, α; dual=false)
+        v = dual ? -x : x
+        s = MOI.PowerCone(α)
+        if MOD._in_pow_cone(v, s)
+            return 1
+        elseif MOD._in_pow_cone(v, MOI.dual_set(s))
+            return 2
+        elseif abs(v[3]) <= 1e-8
+            return 3
+        else
+            return 4
+        end
+    end
+
+    function _test_proj_pow_cone_help(x, α, tol; dual=false)
+        cone = dual ? MOI.DualPowerCone(α) : MOI.PowerCone(α)
+        model = Model()
+        set_optimizer(model, optimizer_with_attributes(
+            SCS.Optimizer, "eps" => 1e-10, "max_iters" => 10000, "verbose" => 0))
+        @variable(model, z[1:3])
+        @variable(model, t)
+        @objective(model, Min, t)
+        @constraint(model, sum((x-z).^2) <= t)
+        @constraint(model, z in cone)
+        optimize!(model)
+        z_star = value.(z)
+        px = MOD.projection_on_set(DD, x, cone)
+        if !isapprox(px, z_star, atol=tol)
+            println("x = $x\nα = $α\nnorm = $(norm(px - z_star))")
+            return false
+       end
+       return true
+    end
+
+    Random.seed!(0)
+    n = 3
+    atol = 2e-7
+    case_p = zeros(4)
+    case_d = zeros(4)
+    for _ in 1:200
+        x = randn(3)
+        α = rand(0.05:0.05:0.95)
+
+        # Need to get some into case 3
+        if rand(1:10) == 1
+            x[3] = 0
+        end
+
+        case_p[det_case_pow_cone(x, α; dual=false)] += 1
+        @test _test_proj_pow_cone_help(x, α, atol; dual=false)
+
+        case_d[det_case_pow_cone(x, α; dual=true)] += 1
+        @test _test_proj_pow_cone_help(x, α, atol; dual=true)
+    end
+    @test all(case_p .> 0) && all(case_d .> 0)
+end
