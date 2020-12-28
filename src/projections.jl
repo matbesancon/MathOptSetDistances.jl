@@ -518,9 +518,9 @@ References:
 (https://stanford.edu/~boyd/papers/cone_prog_refine.html)
 by Enzo Busseti, Walaa M. Moursi, and Stephen Boyd
 """
-function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
+function projection_gradient_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
     # from Moreau decomposition: x = P_K(x) + P_-K*(x)
-    return I - projection_gradient_on_set(DefaultDistance(), -v, MOI.ExponentialCone())
+    return I - projection_gradient_on_set(d, -v, MOI.ExponentialCone())
 end
 
 """
