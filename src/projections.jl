@@ -277,6 +277,22 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Power
         return [max(v[1],0); max(v[2],0); 0.0]
     end
 
+    return _solve_system_pow_cone(v, s; arg=false)
+end
+
+function _in_pow_cone(v::AbstractVector{T}, cone::MOI.PowerCone; tol=1e-10) where {T}
+    α = cone.exponent
+    return v[1] >= 0 && v[2] >= 0 && tol + v[1]^α * v[2]^(1-α) >= abs(v[3])
+end
+
+function _in_pow_cone(v::AbstractVector{T}, cone::MOI.DualPowerCone; tol=1e-10) where {T}
+    α = cone.exponent
+    return (
+        v[1] >= 0 && v[2] >=0 && tol + (v[1])^α * (v[2])^(1-α) >= α^α * (1-α)^(1-α) * abs(v[3])
+    )
+end
+
+function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; arg=true) where {T}
     x, y, z = v
     α = s.exponent
     Phi_prod(xi,αi,z,r) = (xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)))
@@ -294,20 +310,7 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Power
     if code == 2
         error("Failured to solve root finding problem in power cone projection")
     end
-
-    return [0.5*Phi_prod(x,α,z,r); 0.5*Phi_prod(y,1-α,z,r); sign(z)*r]
-end
-
-function _in_pow_cone(v::AbstractVector{T}, cone::MOI.PowerCone; tol=1e-10) where {T}
-    α = cone.exponent
-    return v[1] >= 0 && v[2] >= 0 && tol + v[1]^α * v[2]^(1-α) >= abs(v[3])
-end
-
-function _in_pow_cone(v::AbstractVector{T}, cone::MOI.DualPowerCone; tol=1e-10) where {T}
-    α = cone.exponent
-    return (
-        v[1] >= 0 && v[2] >=0 && tol + (v[1])^α * (v[2])^(1-α) >= α^α * (1-α)^(1-α) * abs(v[3])
-    )
+    return arg ? r : [0.5*Phi_prod(x,α,z,r); 0.5*Phi_prod(y,1-α,z,r); sign(z)*r]
 end
 
 """
@@ -521,6 +524,84 @@ by Enzo Busseti, Walaa M. Moursi, and Stephen Boyd
 function projection_gradient_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
     # from Moreau decomposition: x = P_K(x) + P_-K*(x)
     return I - projection_gradient_on_set(d, -v, MOI.ExponentialCone())
+end
+
+"""
+    projection_gradient_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone) where {T}
+
+derivative of projection of vector `v` on the power cone
+i.e. `K = {(x,y,z) | x^a * y^(1-a) >= |z|, x>=0, y>=0}`.
+
+References:
+* [Differential properties of Euclidean projection onto power cone]
+(https://link.springer.com/article/10.1007/s00186-015-0514-0), Theorem 3.1
+"""
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.PowerCone) where {T}
+    _check_dimension(v, s)
+
+    if _in_pow_cone(v, s)
+        return Matrix{T}(I, 3, 3)
+    end
+    if _in_pow_cone(-v, MOI.dual_set(s))
+        # if in polar cone Ko = -K*
+        return zeros(T, 3, 3)
+    end
+    if abs(v[3]) <= 1e-10
+        return _pow_cone_∇proj_case_3(v, s)
+    end
+
+    r = _solve_system_pow_cone(v, s; arg=true)
+    x, y, z = v
+    α = s.exponent
+    za = abs(z)
+    gx = sqrt(x^2 + 4*α*r*(za - r))
+    gy = sqrt(y^2 + 4*(1-α)*r*(za - r))
+    fx = 0.5*(x + gx)
+    fy = 0.5*(y + gy)
+
+    β = 1-α
+    K = -(α*x/gx + β*y/gy)
+    L = 2*(za - r) / (za + (za - 2r) * -K)
+    J_ii(w, γ, g) = 0.5 + w/2g + γ^2*(za - 2r)*r*L/g^2
+    J_ij = α*β*(za - 2r)*r*L/(gx*gy)
+    J = [
+        J_ii(x, α, gx)      J_ij                sign(z)*α*r*L/gx;
+        J_ij                J_ii(y, β, gy)      sign(z)*β*r*L/gy;
+        sign(z)*α*r*L/gx    sign(z)*β*r*L/gy    r/za*(1+K*L)
+    ]
+    return J
+end
+
+function _pow_cone_∇proj_case_3(v::AbstractVector{T}, s::MOI.PowerCone) where {T}
+    x = [v[1]; v[2]]
+    I(t) = t > 0 ? 1 : 0
+    αs = [s.exponent; 1-s.exponent]
+
+    if sum(αs[x .> 0]) > sum(αs[x .< 0])
+        d = 1
+    elseif sum(αs[x .> 0]) < sum(αs[x .< 0])
+        d = 0
+    else
+        num = reduce(*, (-x[x .< 0]).^αs[x .< 0])
+        denom = reduce(*, x[x .> 0].^αs[x .> 0]) * reduce(*, αs[x .< 0].^αs[x .< 0])
+        d = 1/((num/denom)^2 + 1)
+    end
+    return LinearAlgebra.diagm(0 => T[I(v[1]), I(v[2]), d])
+end
+
+"""
+    projection_gradient_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualPowerCone) where {T}
+
+derivative of projection of vector `v` on the dual power cone
+i.e. `K_pow^* = {(u,v,w) | (u/a)^a * (v/(1-a))^(1-a) >= |w|, u>=0, v>=0}`.
+
+References:
+* [Differential properties of Euclidean projection onto power cone]
+(https://link.springer.com/article/10.1007/s00186-015-0514-0), Theorem 3.1
+"""
+function projection_gradient_on_set(d::DefaultDistance, v::AbstractVector{T}, s::MOI.DualPowerCone) where {T}
+    # from Moreau decomposition: x = P_K(x) + P_-K*(x)
+    return I - projection_gradient_on_set(d, -v, MOI.dual_set(s))
 end
 
 """
