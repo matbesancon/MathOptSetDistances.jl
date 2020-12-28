@@ -160,7 +160,7 @@ end
         z_star = value.(z)
         px = MOD.projection_on_set(DD, x, cone)
         if !isapprox(px, z_star, atol=tol)
-            println("x = $x\nα = $α\nnorm = $(norm(px - z_star))")
+            # error("x = $x\nα = $α\nnorm = $(norm(px - z_star))")
             return false
        end
        return true
