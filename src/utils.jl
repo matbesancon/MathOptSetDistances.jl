@@ -6,7 +6,11 @@ function _bisection(f, left, right; max_iters=500, tol=1e-14)
 
     for _ in 1:max_iters
         f_left, f_right = f(left), f(right)
-        sign(f_left) == sign(f_right) && error("Interval became non-bracketing.")
+        sign(f_left) == sign(f_right) && error("
+            Interval became non-bracketing.
+            \nL: f($left) = $f_left
+            \nR: f($right) = $f_right"
+        )
 
         # Terminate if interval length ~ floating point precision (< eps())
         mid = (left + right) / 2
