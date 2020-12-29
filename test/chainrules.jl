@@ -9,6 +9,14 @@ using FiniteDifferences
 using Test
 using Random
 
+# type piracy here to use FiniteDiff
+function FiniteDifferences.to_vec(s::S) where {S <: Union{MOI.EqualTo, MOI.LessThan, MOI.GreaterThan}}
+    function set_from_vec(v)
+        return S(v[1])
+    end
+    return [MOI.constant(s)], set_from_vec
+end
+
 # avoid random finite diff fails because of rounding
 Random.seed!(42)
 

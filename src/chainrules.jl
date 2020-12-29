@@ -1,11 +1,4 @@
 
-function FiniteDifferences.to_vec(s::S) where {S <: Union{MOI.EqualTo, MOI.LessThan, MOI.GreaterThan}}
-    function set_from_vec(v)
-        return S(v[1])
-    end
-    return [MOI.constant(s)], set_from_vec
-end
-
 function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::T, s::MOI.EqualTo) where {T}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
