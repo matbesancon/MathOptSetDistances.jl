@@ -173,9 +173,9 @@ end
     @testset "Exp Cone" begin
         function det_case_exp_cone(v; dual=false)
             v = dual ? -v : v
-            if MOD.distance_to_set(DD, v, MOI.ExponentialCone()) < 1e-8
+            if MOD._in_exp_cone(v; dual=false)
                 return 1
-            elseif MOD.distance_to_set(DD, -v, MOI.DualExponentialCone()) < 1e-8
+            elseif MOD._in_exp_cone(-v; dual=true)
                 return 2
             elseif v[1] <= 0 && v[2] <= 0 #TODO: threshold here??
                 return 3
@@ -212,6 +212,59 @@ end
                 grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
                 @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                 @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+            end
+        end
+        @test all(case_p .> 0) && all(case_d .> 0)
+    end
+
+    @testset "Power Cone" begin
+        function det_case_pow_cone(x, α; dual=false)
+            v = dual ? -x : x
+            s = MOI.PowerCone(α)
+            if MOD._in_pow_cone(v, s)
+                return 1
+            elseif MOD._in_pow_cone(-v, MOI.dual_set(s))
+                return 2
+            elseif abs(v[3]) <= 1e-8
+                return 3
+            else
+                return 4
+            end
+        end
+
+
+        case_p = zeros(4)
+        case_d = zeros(4)
+        Random.seed!(0)
+        rand_seeds = rand(1:1000, 100)
+        tol = 1e-5
+        for (ii, rseed) in enumerate(rand_seeds)
+            Random.seed!(rseed)
+            println("$ii, $rseed")
+            v = 5*randn(3)
+            for α in [0.5; rand(0.05:0.05:0.95)]
+                if ii % 10 == 1
+                    v[3] = 0.0
+                end
+                s = MOI.PowerCone(α)
+                sd = MOI.dual_set(s)
+                @testset "Primal Cone" begin
+                    case_p[det_case_pow_cone(v, α; dual=false)] += 1
+                    dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                    @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                    @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+                end
+
+                @testset "Dual Cone" begin
+                    case_d[det_case_pow_cone(v, α; dual=true)] += 1
+                    dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, sd)
+                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
+                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
+                    @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                    @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+                end
             end
         end
         @test all(case_p .> 0) && all(case_d .> 0)
