@@ -1,5 +1,5 @@
 
-function _bisection(f, left, right; max_iters=500, tol=1e-14)
+function _bisection(f, left, right; max_iters=10000, tol=1e-14)
     # STOP CODES:
     #   0: Success (floating point limit or exactly 0)
     #   1: Failure (max_iters without coming within tolerance of 0)

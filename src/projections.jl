@@ -546,7 +546,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         # if in polar cone Ko = -K*
         return zeros(T, 3, 3)
     end
-    if abs(v[3]) <= 1e-10
+    if abs(v[3]) <= 1e-8
         return _pow_cone_∇proj_case_3(v, s)
     end
 
