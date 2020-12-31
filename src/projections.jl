@@ -551,8 +551,8 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         return _pow_cone_∇proj_case_3(v, s)
     end
 
-    # x, y, z = v
-    # α = s.exponent
+    x, y, z = v
+    α = s.exponent
     # # This handles the case where v[3]/norm(v) is small.
     #   Phi(eps()) ≈ -r
     #   Phi_prod(x, α, z, eps()) ≈ x + |x| = 2*max(x, 0)
