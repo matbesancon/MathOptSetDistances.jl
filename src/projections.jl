@@ -299,15 +299,25 @@ function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; arg=true
     Phi(r) = 0.5*(Phi_prod(x,α,z,r)^α * Phi_prod(y,1-α,z,r)^(1-α)) - r
 
     # Search for initial upper an lower bounds. Sol in set (0, |z|)
-    lb, ub = 1e-14, abs(z) - 1e-14
+    lb, ub = eps(), abs(z) - eps()
+
+    # This handles the case where v[3]/norm(v) is small.
+    #   Phi(eps()) ≈ -r
+    #   Phi_prod(x, α, z, eps()) ≈ x + |x| = 2*max(x, 0)
+    #   => this gets to case 3 in the limit
+    # if Phi(lb) < 2eps()
+    #     return arg ? eps() : [0.5*Phi_prod(x,α,z,eps()); 0.5*Phi_prod(y,1-α,z,eps()); sign(z)*eps()]
+    # end
+
     ii = 1
     while sign(Phi(lb)) == sign(Phi(ub))
-        lb += 10^ii * 1e-14
-        ub -= 10^ii * 1e-14
-        ub < lb && error("Bound interval error")
+        lb += 10^ii * 1e-15
+        ub -= 10^ii * 1e-15
+        ub < lb && error("Bound interval error. v = $v, α = $α")
+        ii+=1
     end
     r, code = _bisection(Phi, lb, ub)
-    if code == 2
+    if code > 0
         error("Failured to solve root finding problem in power cone projection")
     end
     return arg ? r : [0.5*Phi_prod(x,α,z,r); 0.5*Phi_prod(y,1-α,z,r); sign(z)*r]
