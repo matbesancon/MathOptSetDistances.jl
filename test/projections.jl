@@ -171,20 +171,21 @@ end
     atol = 2e-7
     case_p = zeros(4)
     case_d = zeros(4)
-    for _ in 1:200
+    for _ in 1:100
         x = randn(3)
-        α = rand(0.05:0.05:0.95)
+        for α in [rand(0.05:0.05:0.95); 0.5]
 
-        # Need to get some into case 3
-        if rand(1:10) == 1
-            x[3] = 0
+            # Need to get some into case 3
+            if rand(1:10) == 1
+                x[3] = 0
+            end
+
+            case_p[det_case_pow_cone(x, α; dual=false)] += 1
+            @test _test_proj_pow_cone_help(x, α, atol; dual=false)
+
+            case_d[det_case_pow_cone(x, α; dual=true)] += 1
+            @test _test_proj_pow_cone_help(x, α, atol; dual=true)
         end
-
-        case_p[det_case_pow_cone(x, α; dual=false)] += 1
-        @test _test_proj_pow_cone_help(x, α, atol; dual=false)
-
-        case_d[det_case_pow_cone(x, α; dual=true)] += 1
-        @test _test_proj_pow_cone_help(x, α, atol; dual=true)
     end
     @test all(case_p .> 0) && all(case_d .> 0)
 end
