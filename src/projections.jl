@@ -300,15 +300,6 @@ function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; arg=true
 
     # Search for initial upper an lower bounds. Sol in set (0, |z|)
     lb, ub = eps(), abs(z) - eps()
-
-    # This handles the case where v[3]/norm(v) is small.
-    #   Phi(eps()) ≈ -r
-    #   Phi_prod(x, α, z, eps()) ≈ x + |x| = 2*max(x, 0)
-    #   => this gets to case 3 in the limit
-    # if Phi(lb) < 2eps()
-    #     return arg ? eps() : [0.5*Phi_prod(x,α,z,eps()); 0.5*Phi_prod(y,1-α,z,eps()); sign(z)*eps()]
-    # end
-
     ii = 1
     while sign(Phi(lb)) == sign(Phi(ub))
         lb += 10^ii * 1e-15
@@ -560,9 +551,19 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         return _pow_cone_∇proj_case_3(v, s)
     end
 
+    # x, y, z = v
+    # α = s.exponent
+    # # This handles the case where v[3]/norm(v) is small.
+    #   Phi(eps()) ≈ -r
+    #   Phi_prod(x, α, z, eps()) ≈ x + |x| = 2*max(x, 0)
+    #   => this gets to case 3 in the limit
+    # if (x < 0 || y < 0) && abs(z) <= 1e-2*norm(v)*(0.5 - abs(0.5 - α))
+    #     r = eps()
+    # else
+    #     r = _solve_system_pow_cone(v, s; arg=true)
+    # end
+
     r = _solve_system_pow_cone(v, s; arg=true)
-    x, y, z = v
-    α = s.exponent
     za = abs(z)
     gx = sqrt(x^2 + 4*α*r*(za - r))
     gy = sqrt(y^2 + 4*(1-α)*r*(za - r))
