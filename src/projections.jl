@@ -229,12 +229,12 @@ function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
         error("Failure to find bracketing interval for exp cone projection.")
     end
 
-    x, code = _bisection(h, lb, ub)
-    if code > 0
-        error("Failured to solve root finding problem in exp cone projection")
+    x = _bisection(h, lb, ub)
+    if x === nothing
+        error("Failure in root-finding for exp cone projection with boundaries ($lb, $ub).")
     end
 
-    return ((x - 1)*r + s)/(x^2 - x + 1) * [x; 1.0; exp(x)]
+    return ((x - 1) * r + s)/(x^2 - x + 1) * [x, 1, exp(x)]
 end
 
 """
