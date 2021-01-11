@@ -210,4 +210,40 @@ end
             end
         end
     end
+    @testset "Exp Cone" begin
+        function det_case_exp_cone(v; dual=false)
+            v = dual ? -v : v
+            if MOD.distance_to_set(DD, v, MOI.ExponentialCone()) < 1e-8
+                return 1
+            elseif MOD.distance_to_set(DD, -v, MOI.DualExponentialCone()) < 1e-8
+                return 2
+            elseif v[1] <= 0 && v[2] <= 0 #TODO: threshold here??
+                return 3
+            else
+                return 4
+            end
+        end
+        s = MOI.ExponentialCone()
+        case_p = zeros(4)
+        tol = 1e-6
+        for ii in 1:100
+            v = 5*randn(3)
+            vproj0 = MOD.projection_on_set(DD, v, s)
+            @testset "Primal Cone" begin
+                case_p[det_case_exp_cone(v; dual=false)] += 1
+                dΠ = MOD.projection_gradient_on_set(DD, v, s)
+                grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(DD, x, s), v)[1]'
+                grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(DD, x, s), v)[1]'
+                @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+                for _ in 1:20
+                    Δv = 5*randn(3)
+                    (vproj, Δvproj) = CRC.frule((nothing, nothing, Δv, nothing), MOD.projection_on_set, DD, v, s)
+                    @test dΠ * Δv ≈ Δvproj atol=tol
+                    @test vproj ≈ vproj0
+                end
+            end
+        end
+        @test all(case_p .> 0)
+    end
 end

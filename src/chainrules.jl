@@ -57,7 +57,7 @@ function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::De
     return vproj, ∂vproj
 end
 
-function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::S) where {T, S <: Union{MOI.Nonnegatives, MOI.Nonpositives}}
+function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::S) where {T,S <: Union{MOI.Nonnegatives,MOI.Nonpositives}}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
         v̄ = zeros(eltype(Δvproj), length(Δvproj))
@@ -71,7 +71,7 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v
     return (vproj, pullback)
 end
 
-function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDistance, NormedEpigraphDistance}, v::AbstractVector{T}, s::MOI.SecondOrderCone) where {T}
+function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDistance,NormedEpigraphDistance}, v::AbstractVector{T}, s::MOI.SecondOrderCone) where {T}
     vproj = projection_on_set(d, v, s)
     t = v[1]
     x = v[2:end]
@@ -93,17 +93,17 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
         inv_sq = inv(norm_x^2)
         cons_mul_last = inv_norm * inv_sq * t * x ⋅ Δx
         for i in eachindex(x)
-            v̄[i+1] = inv_norm * Δt * x[i]
-            v̄[i+1] += inv_norm * (t + norm_x) * Δx[i]
-            v̄[i+1] -= cons_mul_last * x[i]
+            v̄[i + 1] = inv_norm * Δt * x[i]
+            v̄[i + 1] += inv_norm * (t + norm_x) * Δx[i]
+            v̄[i + 1] -= cons_mul_last * x[i]
         end
         return result_tuple
     end
     return (vproj, projection_on_set_pullback)
 end
 
-function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.PositiveSemidefiniteConeTriangle) where {T}
-    dim = isqrt(2*length(v))
+function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, ::MOI.PositiveSemidefiniteConeTriangle) where {T}
+    dim = isqrt(2 * length(v))
     X = unvec_symm(v, dim)
     (λ, U) = LinearAlgebra.eigen(X)
     λmin, λmax = extrema(λ)
@@ -130,5 +130,35 @@ function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::De
     end
     M = U * (B .* (U' * unvec_symm(Δv, dim) * U)) * U'
     Δvproj = vec_symm(M)
+    return (vproj, Δvproj)
+end
+
+function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
+    if _in_exp_cone(v; dual=false)
+        return (v, Δv)
+    end
+    if _in_exp_cone(-v; dual=true)
+        # if in polar cone Ko = -K*
+        return (0v, 0Δv)
+    end
+    if v[1] <= 0 && v[2] <= 0
+        vproj = [v[1], 0, max(v[3], 0)]
+        Δvproj = [Δv[1], 0, (v[3] >= 0) * Δv[3]]
+        return vproj, Δvproj
+    end
+
+    vproj = _exp_cone_proj_case_4(v)
+    nu = vproj[3] - v[3]
+    rs = vproj[1] / vproj[2]
+    exp_rs = exp(rs)
+    (z1, z2, z3) = vproj
+    # TODO better way to do this, also in projection_gradient_on_set
+    mat = inv([
+        1 + nu * exp_rs / z2     -nu * exp_rs * rs / z2       0     exp_rs;
+        -nu * exp_rs * rs / z2   1 + nu * exp_rs * rs^2 / z2    0     (1 - rs) * exp_rs;
+        0                  0                      1     -1
+        exp_rs             (1 - rs) * exp_rs          -1    0
+    ])
+    Δvproj = mat[1:3,1:3] * Δv
     return (vproj, Δvproj)
 end
