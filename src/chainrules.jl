@@ -146,19 +146,17 @@ function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::De
         Δvproj = [Δv[1], 0, (v[3] >= 0) * Δv[3]]
         return vproj, Δvproj
     end
-
     vproj = _exp_cone_proj_case_4(v)
     nu = vproj[3] - v[3]
     rs = vproj[1] / vproj[2]
     exp_rs = exp(rs)
     (z1, z2, z3) = vproj
-    # TODO better way to do this, also in projection_gradient_on_set
-    mat = inv([
+    mat = [
         1 + nu * exp_rs / z2     -nu * exp_rs * rs / z2       0     exp_rs;
         -nu * exp_rs * rs / z2   1 + nu * exp_rs * rs^2 / z2    0     (1 - rs) * exp_rs;
         0                  0                      1     -1
         exp_rs             (1 - rs) * exp_rs          -1    0
-    ])
-    Δvproj = mat[1:3,1:3] * Δv
-    return (vproj, Δvproj)
+    ]
+    lin_sol = mat \ [Δv; 0]
+    return (vproj, lin_sol[1:3])
 end
