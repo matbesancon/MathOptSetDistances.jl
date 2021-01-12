@@ -176,7 +176,7 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
         return zeros(T, 3)
     end
     if v[1] <= 0 && v[2] <= 0
-        return [v[1]; 0.0; max(v[3],0)]
+        return [v[1], 0, max(v[3],0)]
     end
 
     return _exp_cone_proj_case_4(v)
@@ -408,7 +408,6 @@ by Enzo Busseti, Walaa M. Moursi, and Stephen Boyd
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
     _check_dimension(v, s)
-    Ip(z) = z >= 0 ? 1 : 0
 
     if _in_exp_cone(v; dual=false)
         return Matrix{T}(I, 3, 3)
@@ -418,7 +417,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         return zeros(T, 3, 3)
     end
     if v[1] <= 0 && v[2] <= 0
-        return LinearAlgebra.diagm(0 => T[1, Ip(v[2]), Ip(v[3])])
+        return LinearAlgebra.diagm(0 => T[1, 0, v[3] >= 0])
     end
 
     z1, z2, z3 = _exp_cone_proj_case_4(v)
