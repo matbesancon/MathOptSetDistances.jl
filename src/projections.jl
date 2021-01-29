@@ -274,10 +274,11 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Power
         return zeros(T, 3)
     end
     if abs(v[3]) <= 1e-10
-        return [max(v[1],0); max(v[2],0); 0.0]
+        return [max(v[1],0), max(v[2],0), 0]
     end
 
-    return _solve_system_pow_cone(v, s; arg=false)
+    _, proj4 = _solve_system_pow_cone(v, s)
+    return proj4
 end
 
 function _in_pow_cone(v::AbstractVector{T}, cone::MOI.PowerCone; tol=1e-10) where {T}
@@ -292,7 +293,19 @@ function _in_pow_cone(v::AbstractVector{T}, cone::MOI.DualPowerCone; tol=1e-10) 
     )
 end
 
-function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; arg=true) where {T}
+"""
+    _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone) where {T}
+
+Solves the system in [1, Proposition 2.2] to determine projection.
+Returns tuple `(r, proj)`:
+* `r` such that `Phi(r) = 0` and `0 < r < abs(v[3])`.
+* `proj` is the projection from case 4 of the power cone
+
+References:
+[1]. [Differential properties of Euclidean projection onto power cone]
+(https://link.springer.com/article/10.1007/s00186-015-0514-0), Prop 2.2
+"""
+function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone) where {T}
     x, y, z = v
     α = s.exponent
     Phi_prod(xi,αi,z,r) = (xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)))
@@ -311,7 +324,7 @@ function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; arg=true
     if code > 0
         error("Failured to solve root finding problem in power cone projection")
     end
-    return arg ? r : [0.5*Phi_prod(x,α,z,r); 0.5*Phi_prod(y,1-α,z,r); sign(z)*r]
+    return r, [0.5*Phi_prod(x,α,z,r); 0.5*Phi_prod(y,1-α,z,r); sign(z)*r]
 end
 
 """
@@ -560,10 +573,10 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     # if (x < 0 || y < 0) && abs(z) <= 1e-2*norm(v)*(0.5 - abs(0.5 - α))
     #     r = eps()
     # else
-    #     r = _solve_system_pow_cone(v, s; arg=true)
+    #     r, _ = _solve_system_pow_cone(v, s)
     # end
 
-    r = _solve_system_pow_cone(v, s; arg=true)
+    r, _ = _solve_system_pow_cone(v, s)
     za = abs(z)
     gx = sqrt(x^2 + 4*α*r*(za - r))
     gy = sqrt(y^2 + 4*(1-α)*r*(za - r))
