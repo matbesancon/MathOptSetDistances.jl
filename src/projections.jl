@@ -585,7 +585,6 @@ end
 
 function _pow_cone_∇proj_case_3(v::AbstractVector{T}, s::MOI.PowerCone) where {T}
     x = [v[1]; v[2]]
-    I(t) = t > 0 ? 1 : 0
     αs = [s.exponent; 1-s.exponent]
 
     if sum(αs[x .> 0]) > sum(αs[x .< 0])
@@ -597,7 +596,7 @@ function _pow_cone_∇proj_case_3(v::AbstractVector{T}, s::MOI.PowerCone) where 
         denom = reduce(*, x[x .> 0].^αs[x .> 0]) * reduce(*, αs[x .< 0].^αs[x .< 0])
         d = 1/((num/denom)^2 + 1)
     end
-    return LinearAlgebra.diagm(0 => T[I(v[1]), I(v[2]), d])
+    return LinearAlgebra.diagm(0 => T[v[1] > 0, v[2] > 0, d])
 end
 
 """
