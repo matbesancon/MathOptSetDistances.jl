@@ -305,26 +305,37 @@ References:
 [1]. [Differential properties of Euclidean projection onto power cone]
 (https://link.springer.com/article/10.1007/s00186-015-0514-0), Prop 2.2
 """
-function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone) where {T}
+function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iters=200, tol=1e-8) where {T}
     x, y, z = v
     α = s.exponent
-    Phi_prod(xi,αi,z,r) = (xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)))
+    Phi_prod(xi,αi,z,r) = max(xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)), 1e-12)
     Phi(r) = 0.5*(Phi_prod(x,α,z,r)^α * Phi_prod(y,1-α,z,r)^(1-α)) - r
+    Phi(r,px,py) = 0.5*(px^α * py^(1-α)) - r
+    dPhi_prod_dr(xi,αi,z,r,px) = 2*αi*(abs(z) - 2r) / (px - xi)
+    dPhi_dr(r,phi,px,py,dpx,dpy) = (phi+r)*(α*dpx/px + (1-α)*dpy/py) - 1
 
-    # Search for initial upper an lower bounds. Sol in set (0, |z|)
-    lb, ub = eps(), abs(z) - eps()
-    ii = 1
-    while sign(Phi(lb)) == sign(Phi(ub))
-        lb += 10^ii * 1e-15
-        ub -= 10^ii * 1e-15
-        ub < lb && error("Bound interval error. v = $v, α = $α")
-        ii+=1
+    # Solve with Newton method
+    # Start Newton at |z|/2. Sol in set (0, |z|)
+    px, py = zero(T), zero(T)
+    r = abs(z) / 2
+    for ii in 1:max_iters
+        px = Phi_prod(x,α,z,r)
+        py = Phi_prod(y,1-α,z,r)
+        phi = Phi(r, px, py)
+
+        abs(phi) < tol && break
+
+        dpx = dPhi_prod_dr(x,α,z,r,px)
+        dpy = dPhi_prod_dr(y,1-α,z,r,py)
+        dphi = dPhi_dr(r,phi,px,py,dpx,dpy)
+
+        # Newton step, bounded to interval
+        r = min(max(r - phi/dphi, 0), abs(z))
+
+        ii == max_iters && @warn("Maximum iterations hit on power cone proj")
     end
-    r, code = _bisection(Phi, lb, ub)
-    if code > 0
-        error("Failured to solve root finding problem in power cone projection")
-    end
-    return r, [0.5*Phi_prod(x,α,z,r); 0.5*Phi_prod(y,1-α,z,r); sign(z)*r]
+
+    return r, [0.5*px; 0.5*py; sign(z)*r]
 end
 
 """
