@@ -319,8 +319,8 @@ function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iter
     px, py = zero(T), zero(T)
     r = abs(z) / 2
     for ii in 1:max_iters
-        px = Phi_prod(x,α,z,r)
-        py = Phi_prod(y,1-α,z,r)
+        px = Phi_prod(x, α, z, r)
+        py = Phi_prod(y, 1-α, z, r)
         phi = Phi(r, px, py)
 
         abs(phi) < tol && break
