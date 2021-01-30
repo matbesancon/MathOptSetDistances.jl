@@ -325,9 +325,9 @@ function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iter
 
         abs(phi) < tol && break
 
-        dpx = dPhi_prod_dr(x,α,z,r,px)
-        dpy = dPhi_prod_dr(y,1-α,z,r,py)
-        dphi = dPhi_dr(r,phi,px,py,dpx,dpy)
+        dpx = dPhi_prod_dr(x, α, z, r, px)
+        dpy = dPhi_prod_dr(y, 1-α, z, r, py)
+        dphi = dPhi_dr(r, phi, px, py, dpx, dpy)
 
         # Newton step, bounded to interval
         r = min(max(r - phi/dphi, 0), abs(z))
