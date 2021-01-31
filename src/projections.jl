@@ -305,7 +305,7 @@ References:
 [1]. [Differential properties of Euclidean projection onto power cone]
 (https://link.springer.com/article/10.1007/s00186-015-0514-0), Prop 2.2
 """
-function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iters=200, tol=1e-8) where {T}
+function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iters=500, tol=1e-10) where {T}
     x, y, z = v
     α = s.exponent
     Phi_prod(xi,αi,z,r) = max(xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)), 1e-12)
