@@ -23,9 +23,10 @@ julia = "1"
 
 [extras]
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
+Hypatia = "b99e6be6-89ff-11e8-14f8-45c827f4f8f2"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 SCS = "c946c3f1-0d1f-5ce8-9dea-7daa1f7e2d13"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "ChainRulesTestUtils", "JuMP", "SCS"]
+test = ["Test", "ChainRulesTestUtils", "Hypatia", "JuMP", "SCS"]
