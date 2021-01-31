@@ -10,6 +10,7 @@ using LinearAlgebra
 
 const bfdm = FiniteDifferences.backward_fdm(5, 1)
 const ffdm = FiniteDifferences.forward_fdm(5, 1)
+const cfdm = FiniteDifferences.central_fdm(5,1)
 
 import ChainRulesCore
 const CRC = ChainRulesCore
@@ -236,11 +237,8 @@ end
         case_p = zeros(4)
         case_d = zeros(4)
         Random.seed!(0)
-        rand_seeds = rand(1:1000, 100)
         tol = 1e-5
-        for (ii, rseed) in enumerate(rand_seeds)
-            Random.seed!(rseed)
-            println("$ii, $rseed")
+        for ii in 1:100
             v = 5*randn(3)
             for α in [0.5; rand(0.05:0.05:0.95)]
                 if ii % 10 == 1
@@ -249,21 +247,31 @@ end
                 s = MOI.PowerCone(α)
                 sd = MOI.dual_set(s)
                 @testset "Primal Cone" begin
-                    case_p[det_case_pow_cone(v, α; dual=false)] += 1
+                    case = det_case_pow_cone(v, α; dual=false)
+                    case_p[case] += 1
                     dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                    grad_fdm3 = FiniteDifferences.jacobian(cfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
-                    @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+                    @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol)
+                    if !(≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol))
+                        error("v=$v\ndΠ = $dΠ\ncase=$case\nFD=$grad_fdm3")
+                    end
                 end
 
                 @testset "Dual Cone" begin
-                    case_d[det_case_pow_cone(v, α; dual=true)] += 1
+                    case = det_case_pow_cone(v, α; dual=true)
+                    case_d[case] += 1
                     dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, sd)
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
+                    grad_fdm3 = FiniteDifferences.jacobian(cfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
-                    @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+                    @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol)
+                    if !(≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol))
+                        error("v=$v\ndΠ = $dΠ\ncase=$case\nFD=$grad_fdm3")
+                    end
                 end
             end
         end
