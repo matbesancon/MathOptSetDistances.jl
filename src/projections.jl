@@ -335,7 +335,7 @@ function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iter
         ii == max_iters && @warn("Maximum iterations hit on power cone proj")
     end
 
-    return r, [0.5*px; 0.5*py; sign(z)*r]
+    return r, [0.5*px, 0.5*py, sign(z)*r]
 end
 
 """
