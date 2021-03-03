@@ -4,7 +4,7 @@ const DD = MOD.DefaultDistance()
 @testset "Test projections distance on vector sets" begin
     for n in [1, 10] # vector sizes
         v = rand(n)
-        for s in (MOI.Zeros(n), MOI.Nonnegatives(n), MOI.Reals(n))
+        for s in (MOI.Zeros(n), MOI.Nonnegatives(n), MOI.Nonpositives(n), MOI.Reals(n))
             πv = MOD.projection_on_set(DD, v, s)
             @test MOD.distance_to_set(DD, πv, s) ≈ 0 atol=eps(Float64)
         end
@@ -32,12 +32,16 @@ end
     #testing POS
     @test MOD.projection_on_set(DD, -ones(5), MOI.Nonnegatives(5)) ≈ zeros(5)
     @test MOD.projection_on_set(DD, ones(5), MOI.Nonnegatives(5)) ≈ ones(5)
+    @test MOD.projection_on_set(DD, -ones(5), MOI.Nonpositives(5)) ≈ -ones(5)
+    @test MOD.projection_on_set(DD, ones(5), MOI.Nonpositives(5)) ≈ zeros(5)
 end
 
 @testset "Trivial projection gradient on vector cones" begin
     #testing POS
     @test MOD.projection_gradient_on_set(DD, -ones(5), MOI.Nonnegatives(5)) ≈ zeros(5,5)
     @test MOD.projection_gradient_on_set(DD, ones(5), MOI.Nonnegatives(5)) ≈  Matrix{Float64}(LinearAlgebra.I, 5, 5)
+    @test MOD.projection_gradient_on_set(DD, -ones(5), MOI.Nonpositives(5)) ≈ Matrix{Float64}(LinearAlgebra.I, 5, 5)
+    @test MOD.projection_gradient_on_set(DD, ones(5), MOI.Nonpositives(5)) ≈ zeros(5,5)
 
     # testing SOC
     @test MOD.projection_gradient_on_set(DD, [1.0; ones(1)], MOI.SecondOrderCone(1)) ≈ [1.0  0.0;
