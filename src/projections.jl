@@ -164,8 +164,10 @@ References:
 by Neal Parikh and Stephen Boyd.
 * [Projection, presolve in MOSEK: exponential, and power cones]
 (https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf) by Henrik Friberg
+* [Projection onto the exponential cone: a univariate root-finding problem]
+(https://docs.mosek.com/whitepapers/expcone-proj.pdf) by Henrik Friberg
 """
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone; tol=1e-8) where {T}
     _check_dimension(v, s)
 
     if _in_exp_cone(v; dual=false)
@@ -179,7 +181,31 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
         return [v[1], 0, max(v[3],0)]
     end
 
-    return _exp_cone_proj_case_4(v)
+    # Heuristic solutions [Friberg 2021, Lemma 5.1]
+    # vp = proj onto primal cone, vd = proj onto polar cone
+    vp = [min(v[1], 0), zero(T), max(v[3], 0)]
+    vd = [zero(T), min(v[2], 0), min(v[3], 0)]
+    if v[2] > 0
+        zp = max(v[3], v[2]*exp(v[1]/v[2]))
+        if zp - v[3] < norm(vp - v)
+            vp = [v[1], v[2], zp]
+        end
+    end
+    if v[1] > 0
+        zd = min(v[3], -v[1]*exp(v[2]/v[1] - 1))
+        if v[3] - zd < norm(vd - v)
+            vd = [v[1], v[2], zd]
+        end
+    end
+
+    # Check if heuristics above approximately satisfy the optimality conditions
+    opt_norm = norm(vp + vd - v)
+    opt_ortho = abs(dot(vp, vd))
+    if min(norm(v - vp), norm(v - vd)) > tol && (opt_norm > tol || opt_ortho > tol)
+        return _exp_cone_proj_case_4(v)
+    else
+        return vp
+    end
 end
 
 function _in_exp_cone(v::AbstractVector{T}; dual=false, tol=1e-8) where {T}
