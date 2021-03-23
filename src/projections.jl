@@ -181,7 +181,25 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
         return [v[1], 0, max(v[3],0)]
     end
 
-    # Heuristic solutions [Friberg 2021, Lemma 5.1]
+    return _exp_cone_proj_case_4(v; tol=tol)
+end
+
+function _in_exp_cone(v::AbstractVector{T}; dual=false, tol=1e-8) where {T}
+    if dual
+        return (
+            (isapprox(v[1], 0, atol=tol) && v[2] >= 0 && v[3] >= 0) ||
+            (v[1] < 0 && v[1]*exp(v[2]/v[1]) + ℯ*v[3] >= tol)
+        )
+    else
+        return (
+            (v[1] <= 0 && isapprox(v[2], 0, atol=tol) && v[3] >= 0) ||
+            (v[2] > 0 && v[2] * exp(v[1] / v[2]) - v[3] <= tol)
+        )
+    end
+end
+
+function _exp_cone_proj_case_4(v::AbstractVector{T}; tol=1e-8) where {T}
+    # Try Heuristic solutions [Friberg 2021, Lemma 5.1]
     # vp = proj onto primal cone, vd = proj onto polar cone
     vp = [min(v[1], 0), zero(T), max(v[3], 0)]
     vd = [zero(T), min(v[2], 0), min(v[3], 0)]
@@ -201,28 +219,11 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
     # Check if heuristics above approximately satisfy the optimality conditions
     opt_norm = norm(vp + vd - v)
     opt_ortho = abs(dot(vp, vd))
-    if min(norm(v - vp), norm(v - vd)) > tol && (opt_norm > tol || opt_ortho > tol)
-        return _exp_cone_proj_case_4(v)
-    else
+    if norm(v - vp) < tol || norm(v - vd) < tol || (opt_norm < tol && opt_ortho < tol)
         return vp
     end
-end
 
-function _in_exp_cone(v::AbstractVector{T}; dual=false, tol=1e-8) where {T}
-    if dual
-        return (
-            (isapprox(v[1], 0, atol=tol) && v[2] >= 0 && v[3] >= 0) ||
-            (v[1] < 0 && v[1]*exp(v[2]/v[1]) + ℯ*v[3] >= tol)
-        )
-    else
-        return (
-            (v[1] <= 0 && isapprox(v[2], 0, atol=tol) && v[3] >= 0) ||
-            (v[2] > 0 && v[2] * exp(v[1] / v[2]) - v[3] <= tol)
-        )
-    end
-end
-
-function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
+    # Failure of heuristics -> non heuristic solution
     # Ref: https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf, p47-48
     # Thm: h(x) is smooth, strictly increasing, and changes sign on domain
     r, s, t = v[1], v[2], v[3]
