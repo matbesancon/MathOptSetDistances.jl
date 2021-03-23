@@ -102,12 +102,10 @@ end
             proj = dual ? px - x : px
             pdx = dual ? -x - proj : x - proj
             ortho = abs(dot(proj, pdx)) / norm(x)
-            if  ortho < tol && MOD._in_exp_cone(proj, tol=tol)
-                return true
-            else
+            if ortho >= tol || !MOD._in_exp_cone(proj, tol=tol)
                 error("x = $x,\npx = $px,\npdx = $pdx,\northogonality: $ortho")
-                return false
             end
+            return true
         end
 
         model = Model()
