@@ -34,13 +34,13 @@ function test_rrule_analytical(x, s; distance = MOD.DefaultDistance(), ntrials =
         (_, _, Δx, _) = pullback(yb)
         @test Δx ≈ dΠ' * yb
         if test_fdiff
-            ChainRulesTestUtils.rrule_test(
+            ChainRulesTestUtils.test_rrule(
                 MOD.projection_on_set,
-                yb,
-                (distance, nothing),
-                (x, xb),
-                (s, nothing),
-                atol=atol,rtol=rtol
+                ChainRulesTestUtils.PrimalAndTangent(distance, nothing),
+                ChainRulesTestUtils.PrimalAndTangent(x, xb),
+                ChainRulesTestUtils.PrimalAndTangent(s, nothing),
+                atol=atol,rtol=rtol,
+                output_tangent=yb,
             )
         end
     end
@@ -55,12 +55,12 @@ end
         test_rrule_analytical(x, s, atol=1e-5, rtol=1e-5, test_fdiff=false)
         # requires FillArrays.Zero handling
         # still broken?
-        @test_broken ChainRulesTestUtils.rrule_test(
+        @test_broken ChainRulesTestUtils.test_rrule(
             MOD.projection_on_set,
-            yb,
-            (MOD.DefaultDistance(), nothing),
-            (x, xb),
-            (s, nothing),
+            ChainRulesTestUtils.PrimalAndTangent(MOD.DefaultDistance(), nothing),
+            ChainRulesTestUtils.PrimalAndTangent(x, xb),
+            ChainRulesTestUtils.PrimalAndTangent(s, nothing),
+            output_tangent=yb,
         )
         @testset "Orthant $s" for s in (MOI.Nonpositives(n), MOI.Nonnegatives(n))
             test_rrule_analytical(x, s)
@@ -105,12 +105,12 @@ end
                 xb = ChainRulesTestUtils.rand_tangent(x)
                 yb = ChainRulesTestUtils.rand_tangent(y)
                 sb = ChainRulesTestUtils.rand_tangent(s)
-                ChainRulesTestUtils.rrule_test(
+                ChainRulesTestUtils.test_rrule(
                     MOD.projection_on_set,
-                    yb,
-                    (MOD.DefaultDistance(), nothing),
-                    (x, xb),
-                    (s, sb),
+                    ChainRulesTestUtils.PrimalAndTangent(MOD.DefaultDistance(), nothing),
+                    ChainRulesTestUtils.PrimalAndTangent(x, xb),
+                    ChainRulesTestUtils.PrimalAndTangent(s, sb),
+                    output_tangent=yb,
                     atol=1e-4,
                 )
                 (_, _, Δx, _) = pullback(yb)
@@ -128,11 +128,11 @@ end
                 v = 50 * safe_randn(n)
                 for _ in 1:5
                     Δv = ChainRulesTestUtils.rand_tangent(v)
-                    ChainRulesTestUtils.frule_test(
+                    ChainRulesTestUtils.test_frule(
                         MOD.projection_on_set,
-                        (MOD.DefaultDistance(), nothing),
-                        (v, Δv),
-                        (s, nothing),
+                        ChainRulesTestUtils.PrimalAndTangent(MOD.DefaultDistance(), nothing),
+                        ChainRulesTestUtils.PrimalAndTangent(v, Δv),
+                        ChainRulesTestUtils.PrimalAndTangent(s, nothing),
                         atol=1e-5,
                     )
                 end
