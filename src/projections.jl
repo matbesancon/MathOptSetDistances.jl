@@ -281,7 +281,7 @@ function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualE
 end
 
 """
-    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone) where {T}
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone; [max_iters=10_000]) where {T}
 
 projection of vector `v` on the power cone
 i.e. `K = {(x,y,z) | x^a * y^(1-a) >= |z|, x>=0, y>=0}`.
@@ -290,7 +290,7 @@ References:
 * [Differential properties of Euclidean projection onto power cone]
 (https://link.springer.com/article/10.1007/s00186-015-0514-0), Prop 2.2
 """
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.PowerCone) where {T}
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.PowerCone; max_iters=10_000) where {T}
     _check_dimension(v, s)
 
     if _in_pow_cone(v, s)
@@ -304,7 +304,7 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Power
         return [max(v[1],0), max(v[2],0), 0]
     end
 
-    _, proj4 = _solve_system_pow_cone(v, s)
+    _, proj4 = _solve_system_pow_cone(v, s, max_iters=max_iters)
     return proj4
 end
 
@@ -335,11 +335,11 @@ References:
 function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iters=10_000, tol=1e-10) where {T}
     x, y, z = v
     α = s.exponent
-    Phi_prod(xi,αi,z,r) = max(xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)), 1e-12)
+    Phi_prod(xi, αi, z, r) = max(xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)), 1e-12)
     Phi(r) = 0.5*(Phi_prod(x,α,z,r)^α * Phi_prod(y,1-α,z,r)^(1-α)) - r
     Phi(r,px,py) = 0.5*(px^α * py^(1-α)) - r
     dPhi_prod_dr(xi,αi,z,r,px) = 2*αi*(abs(z) - 2r) / (px - xi)
-    dPhi_dr(r,phi,px,py,dpx,dpy) = (phi+r)*(α*dpx/px + (1-α)*dpy/py) - 1
+    dPhi_dr(r,phi,px,py,dpx,dpy) = (phi+r) * (α * dpx / px + (1-α) * dpy / py) - 1
 
     # Solve with Newton method
     # Start Newton at |z|/2. Sol in set (0, |z|)
