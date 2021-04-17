@@ -4,7 +4,7 @@ const DD = MOD.DefaultDistance()
 @testset "Test projections distance on vector sets" begin
     for n in [1, 10] # vector sizes
         v = rand(n)
-        for s in (MOI.Zeros(n), MOI.Nonnegatives(n), MOI.Reals(n))
+        for s in (MOI.Zeros(n), MOI.Nonnegatives(n), MOI.Nonpositives(n), MOI.Reals(n))
             πv = MOD.projection_on_set(DD, v, s)
             @test MOD.distance_to_set(DD, πv, s) ≈ 0 atol=eps(Float64)
         end
@@ -32,12 +32,16 @@ end
     #testing POS
     @test MOD.projection_on_set(DD, -ones(5), MOI.Nonnegatives(5)) ≈ zeros(5)
     @test MOD.projection_on_set(DD, ones(5), MOI.Nonnegatives(5)) ≈ ones(5)
+    @test MOD.projection_on_set(DD, -ones(5), MOI.Nonpositives(5)) ≈ -ones(5)
+    @test MOD.projection_on_set(DD, ones(5), MOI.Nonpositives(5)) ≈ zeros(5)
 end
 
 @testset "Trivial projection gradient on vector cones" begin
     #testing POS
     @test MOD.projection_gradient_on_set(DD, -ones(5), MOI.Nonnegatives(5)) ≈ zeros(5,5)
     @test MOD.projection_gradient_on_set(DD, ones(5), MOI.Nonnegatives(5)) ≈  Matrix{Float64}(LinearAlgebra.I, 5, 5)
+    @test MOD.projection_gradient_on_set(DD, -ones(5), MOI.Nonpositives(5)) ≈ Matrix{Float64}(LinearAlgebra.I, 5, 5)
+    @test MOD.projection_gradient_on_set(DD, ones(5), MOI.Nonpositives(5)) ≈ zeros(5,5)
 
     # testing SOC
     @test MOD.projection_gradient_on_set(DD, [1.0; ones(1)], MOI.SecondOrderCone(1)) ≈ [1.0  0.0;
@@ -66,7 +70,7 @@ end
     @test output_joint ≈ [output_1; output_2]
 end
 
-@testset "Non-trivial Block projection gradient" begin
+@testset "Non-trivial block projection gradient" begin
     v1 = rand(Float64, 15)
     v2 = rand(Float64, 5)
     c1 = MOI.PositiveSemidefiniteConeTriangle(6)
@@ -95,6 +99,19 @@ end
 
     function _test_proj_exp_cone_help(x, tol; dual=false)
         cone = dual ? MOI.DualExponentialCone() : MOI.ExponentialCone()
+        px = MOD.projection_on_set(DD, x, cone)
+
+        # Tests for big numbers -- use optimality conditions
+        if maximum(abs.(x)) > exp(9)
+            proj = dual ? px - x : px
+            pdx = dual ? -x - proj : x - proj
+            ortho = abs(dot(proj, pdx)) / norm(x)
+            if ortho >= tol || !MOD._in_exp_cone(proj, tol=tol)
+                error("x = $x,\npx = $px,\npdx = $pdx,\northogonality: $ortho")
+            end
+            return true
+        end
+
         model = Model()
         set_optimizer(model, optimizer_with_attributes(
             SCS.Optimizer, "eps" => 1e-10, "max_iters" => 10000, "verbose" => 0))
@@ -105,28 +122,36 @@ end
         @constraint(model, z in cone)
         optimize!(model)
         z_star = value.(z)
-        px = MOD.projection_on_set(DD, x, cone)
         if !isapprox(px, z_star, atol=tol)
-            # error("Exp cone projection failed:\n x = $x\nMOD: $px\nJuMP: $z_star
-            #        \nnorm: $(norm(px - z_star))")
+            error("Exp cone projection failed:\n x = $x\nMOD: $px\nJuMP: $z_star
+                   norm: $(norm(px - z_star))")
             return false
        end
        return true
     end
 
     Random.seed!(0)
-    n = 3
-    atol = 1e-7
+    tol = 1e-6
     case_p = zeros(4)
     case_d = zeros(4)
-    for _ in 1:100
-        x = randn(3)
+    exponents = [10, 20]
+    domain = [-exp.(exponents); 0.0; exp.(exponents)]
+    for (x1, x2, x3) in Iterators.product(domain, domain, domain)
+        # x = randn(3)
+        x = [x1, x2, x3]
 
         case_p[det_case_exp_cone(x; dual=false)] += 1
-        @test _test_proj_exp_cone_help(x, atol; dual=false)
+        @test _test_proj_exp_cone_help(x, tol; dual=false)
 
         case_d[det_case_exp_cone(x; dual=true)] += 1
-        @test _test_proj_exp_cone_help(x, atol; dual=true)
+        @test _test_proj_exp_cone_help(x, tol; dual=true)
+
+        x = randn(3)
+        case_p[det_case_exp_cone(x; dual=false)] += 1
+        @test _test_proj_exp_cone_help(x, tol; dual=false)
+
+        case_d[det_case_exp_cone(x; dual=true)] += 1
+        @test _test_proj_exp_cone_help(x, tol; dual=true)
     end
     @test all(case_p .> 0) && all(case_d .> 0)
 end

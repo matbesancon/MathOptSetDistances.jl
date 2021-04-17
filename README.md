@@ -3,6 +3,8 @@
 [![Build Status](https://github.com/matbesancon/MathOptSetDistances.jl/workflows/CI/badge.svg)](https://github.com/matbesancon/MathOptSetDistances.jl/actions)
 [![Coverage](https://codecov.io/gh/matbesancon/MathOptSetDistances.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/matbesancon/MathOptSetDistances.jl)
 
+Set of functions to compute distances and projections to sets defined in [MathOptInterface.jl](https://github.com/jump-dev/MathOptInterface.jl).
+
 ## Distance to set
 
 `set_distance(d::D, v::V, s::S)` defines the distance of a point `v` to a set `s`. The distance is always 0 if `v ∈ s`.

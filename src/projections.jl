@@ -164,8 +164,10 @@ References:
 by Neal Parikh and Stephen Boyd.
 * [Projection, presolve in MOSEK: exponential, and power cones]
 (https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf) by Henrik Friberg
+* [Projection onto the exponential cone: a univariate root-finding problem]
+(https://docs.mosek.com/whitepapers/expcone-proj.pdf) by Henrik Friberg
 """
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone; tol=1e-8) where {T}
     _check_dimension(v, s)
 
     if _in_exp_cone(v; dual=false)
@@ -176,10 +178,10 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
         return zeros(T, 3)
     end
     if v[1] <= 0 && v[2] <= 0
-        return [v[1]; 0.0; max(v[3],0)]
+        return [v[1], 0, max(v[3],0)]
     end
 
-    return _exp_cone_proj_case_4(v)
+    return _exp_cone_proj_case_4(v; tol=tol)
 end
 
 function _in_exp_cone(v::AbstractVector{T}; dual=false, tol=1e-8) where {T}
@@ -196,7 +198,32 @@ function _in_exp_cone(v::AbstractVector{T}; dual=false, tol=1e-8) where {T}
     end
 end
 
-function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
+function _exp_cone_proj_case_4(v::AbstractVector{T}; tol=1e-8) where {T}
+    # Try Heuristic solutions [Friberg 2021, Lemma 5.1]
+    # vp = proj onto primal cone, vd = proj onto polar cone
+    vp = [min(v[1], 0), zero(T), max(v[3], 0)]
+    vd = [zero(T), min(v[2], 0), min(v[3], 0)]
+    if v[2] > 0
+        zp = max(v[3], v[2]*exp(v[1]/v[2]))
+        if zp - v[3] < norm(vp - v)
+            vp = [v[1], v[2], zp]
+        end
+    end
+    if v[1] > 0
+        zd = min(v[3], -v[1]*exp(v[2]/v[1] - 1))
+        if v[3] - zd < norm(vd - v)
+            vd = [v[1], v[2], zd]
+        end
+    end
+
+    # Check if heuristics above approximately satisfy the optimality conditions
+    opt_norm = norm(vp + vd - v)
+    opt_ortho = abs(dot(vp, vd))
+    if norm(v - vp) < tol || norm(v - vd) < tol || (opt_norm < tol && opt_ortho < tol)
+        return vp
+    end
+
+    # Failure of heuristics -> non heuristic solution
     # Ref: https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf, p47-48
     # Thm: h(x) is smooth, strictly increasing, and changes sign on domain
     r, s, t = v[1], v[2], v[3]
@@ -229,12 +256,12 @@ function _exp_cone_proj_case_4(v::AbstractVector{T}) where {T}
         error("Failure to find bracketing interval for exp cone projection.")
     end
 
-    x, code = _bisection(h, lb, ub)
-    if code > 0
-        error("Failured to solve root finding problem in exp cone projection")
+    x = _bisection(h, lb, ub)
+    if x === nothing
+        error("Failure in root-finding for exp cone projection with boundaries ($lb, $ub).")
     end
 
-    return ((x - 1)*r + s)/(x^2 - x + 1) * [x; 1.0; exp(x)]
+    return ((x - 1) * r + s)/(x^2 - x + 1) * [x, 1, exp(x)]
 end
 
 """
@@ -305,7 +332,7 @@ References:
 [1]. [Differential properties of Euclidean projection onto power cone]
 (https://link.springer.com/article/10.1007/s00186-015-0514-0), Prop 2.2
 """
-function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iters=500, tol=1e-10) where {T}
+function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iters=10_000, tol=1e-10) where {T}
     x, y, z = v
     α = s.exponent
     Phi_prod(xi,αi,z,r) = max(xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)), 1e-12)
@@ -332,7 +359,7 @@ function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iter
         # Newton step, bounded to interval
         r = min(max(r - phi/dphi, 0), abs(z))
 
-        ii == max_iters && @warn("Maximum iterations hit on power cone proj")
+        ii == max_iters && @warn("Maximum iterations hit on power cone projection")
     end
 
     return r, [0.5*px, 0.5*py, sign(z)*r]
@@ -508,7 +535,6 @@ by Enzo Busseti, Walaa M. Moursi, and Stephen Boyd
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
     _check_dimension(v, s)
-    Ip(z) = z >= 0 ? 1 : 0
 
     if _in_exp_cone(v; dual=false)
         return Matrix{T}(I, 3, 3)
@@ -518,7 +544,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         return zeros(T, 3, 3)
     end
     if v[1] <= 0 && v[2] <= 0
-        return LinearAlgebra.diagm(0 => T[1, Ip(v[2]), Ip(v[3])])
+        return LinearAlgebra.diagm(0 => T[1, 0, v[3] >= 0])
     end
 
     z1, z2, z3 = _exp_cone_proj_case_4(v)

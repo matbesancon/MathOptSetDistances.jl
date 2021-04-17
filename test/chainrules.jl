@@ -9,6 +9,14 @@ using FiniteDifferences
 using Test
 using Random
 
+# type piracy here to use FiniteDiff
+function FiniteDifferences.to_vec(s::S) where {S <: Union{MOI.EqualTo, MOI.LessThan, MOI.GreaterThan}}
+    function set_from_vec(v)
+        return S(v[1])
+    end
+    return [MOI.constant(s)], set_from_vec
+end
+
 # avoid random finite diff fails because of rounding
 Random.seed!(42)
 
@@ -26,13 +34,13 @@ function test_rrule_analytical(x, s; distance = MOD.DefaultDistance(), ntrials =
         (_, _, Δx, _) = pullback(yb)
         @test Δx ≈ dΠ' * yb
         if test_fdiff
-            ChainRulesTestUtils.rrule_test(
+            ChainRulesTestUtils.test_rrule(
                 MOD.projection_on_set,
-                yb,
-                (distance, nothing),
-                (x, xb),
-                (s, nothing),
-                atol=atol,rtol=rtol
+                ChainRulesTestUtils.PrimalAndTangent(distance, CRC.DoesNotExist()),
+                ChainRulesTestUtils.PrimalAndTangent(x, xb),
+                ChainRulesTestUtils.PrimalAndTangent(s, CRC.DoesNotExist()),
+                atol=atol,rtol=rtol,
+                output_tangent=yb,
             )
         end
     end
@@ -47,12 +55,12 @@ end
         test_rrule_analytical(x, s, atol=1e-5, rtol=1e-5, test_fdiff=false)
         # requires FillArrays.Zero handling
         # still broken?
-        @test_broken ChainRulesTestUtils.rrule_test(
+        @test_broken ChainRulesTestUtils.test_rrule(
             MOD.projection_on_set,
-            yb,
-            (MOD.DefaultDistance(), nothing),
-            (x, xb),
-            (s, nothing),
+            ChainRulesTestUtils.PrimalAndTangent(MOD.DefaultDistance(), CRC.DoesNotExist()),
+            ChainRulesTestUtils.PrimalAndTangent(x, xb),
+            ChainRulesTestUtils.PrimalAndTangent(s, CRC.DoesNotExist()),
+            output_tangent=yb,
         )
         @testset "Orthant $s" for s in (MOI.Nonpositives(n), MOI.Nonnegatives(n))
             test_rrule_analytical(x, s)
@@ -97,12 +105,12 @@ end
                 xb = ChainRulesTestUtils.rand_tangent(x)
                 yb = ChainRulesTestUtils.rand_tangent(y)
                 sb = ChainRulesTestUtils.rand_tangent(s)
-                ChainRulesTestUtils.rrule_test(
+                ChainRulesTestUtils.test_rrule(
                     MOD.projection_on_set,
-                    yb,
-                    (MOD.DefaultDistance(), nothing),
-                    (x, xb),
-                    (s, sb),
+                    ChainRulesTestUtils.PrimalAndTangent(MOD.DefaultDistance(), CRC.DoesNotExist()),
+                    ChainRulesTestUtils.PrimalAndTangent(x, xb),
+                    ChainRulesTestUtils.PrimalAndTangent(s, sb),
+                    output_tangent=yb,
                     atol=1e-4,
                 )
                 (_, _, Δx, _) = pullback(yb)
@@ -115,6 +123,22 @@ end
 @testset "frule" begin
     d = MOD.DefaultDistance()
     for n in (1, 2, 10)
+        @testset "$s" for s in (MOI.Nonnegatives(n), MOI.Nonpositives(n))
+            for _ in 1:10
+                v = 50 * safe_randn(n)
+                for _ in 1:5
+                    Δv = ChainRulesTestUtils.rand_tangent(v)
+                    ChainRulesTestUtils.test_frule(
+                        MOD.projection_on_set,
+                        ChainRulesTestUtils.PrimalAndTangent(MOD.DefaultDistance(), CRC.DoesNotExist()),
+                        ChainRulesTestUtils.PrimalAndTangent(v, Δv),
+                        ChainRulesTestUtils.PrimalAndTangent(s, CRC.DoesNotExist()),
+                        atol=1e-5,
+                    )
+                end
+            end
+        end
+    
         s = MOI.PositiveSemidefiniteConeTriangle(n)
         @testset "$s" begin
             for _ in 1:5
@@ -129,13 +153,13 @@ end
                     for _ in 1:3
                         Δv .= ChainRulesTestUtils.rand_tangent(v)
                         v .= v0
-                        (vproj, Δvproj) = CRC.frule((nothing, nothing, Δv, nothing), MOD.projection_on_set, d, v, s)
+                        (vproj, Δvproj) = CRC.frule((CRC.DoesNotExist(), CRC.DoesNotExist(), Δv, CRC.DoesNotExist()), MOD.projection_on_set, d, v, s)
                         @test Δvproj ≈ Δv
                         @test vproj ≈ v
                         v .= -v0
                         dΠ .= MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
                         Π .= MOD.projection_on_set(MOD.DefaultDistance(), v, s)
-                        (vproj, Δvproj) = CRC.frule((nothing, nothing, Δv, nothing), MOD.projection_on_set, d, v, s)
+                        (vproj, Δvproj) = CRC.frule((CRC.DoesNotExist(), CRC.DoesNotExist(), Δv, CRC.DoesNotExist()), MOD.projection_on_set, d, v, s)
                         @test dΠ * Δv ≈ Δvproj
                         @test vproj ≈ Π
                     end
@@ -180,10 +204,46 @@ end
                     Q * (B .* (Q' * Xd * Q)) * Q'
                 )
                 @test DΠ * xd ≈ dir_deriv_theo
-                (vproj_frule, Δvproj) = CRC.frule((nothing, nothing, xd, nothing), MOD.projection_on_set, d, v, s)
+                (vproj_frule, Δvproj) = CRC.frule((CRC.DoesNotExist(), CRC.DoesNotExist(), xd, CRC.DoesNotExist()), MOD.projection_on_set, d, v, s)
                 @test DΠ * xd ≈ Δvproj
                 @test vproj ≈ vproj_frule
             end
         end
+    end
+    @testset "Exp Cone" begin
+        function det_case_exp_cone(v; dual=false)
+            v = dual ? -v : v
+            if MOD.distance_to_set(DD, v, MOI.ExponentialCone()) < 1e-8
+                return 1
+            elseif MOD.distance_to_set(DD, -v, MOI.DualExponentialCone()) < 1e-8
+                return 2
+            elseif v[1] <= 0 && v[2] <= 0 #TODO: threshold here??
+                return 3
+            else
+                return 4
+            end
+        end
+        s = MOI.ExponentialCone()
+        case_p = zeros(4)
+        tol = 1e-6
+        for ii in 1:100
+            v = 5*randn(3)
+            vproj0 = MOD.projection_on_set(DD, v, s)
+            @testset "Primal Cone" begin
+                case_p[det_case_exp_cone(v; dual=false)] += 1
+                dΠ = MOD.projection_gradient_on_set(DD, v, s)
+                grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(DD, x, s), v)[1]'
+                grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(DD, x, s), v)[1]'
+                @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+                for _ in 1:20
+                    Δv = 5*randn(3)
+                    (vproj, Δvproj) = CRC.frule((CRC.DoesNotExist(), CRC.DoesNotExist(), Δv, CRC.DoesNotExist()), MOD.projection_on_set, DD, v, s)
+                    @test dΠ * Δv ≈ Δvproj atol=tol
+                    @test vproj ≈ vproj0
+                end
+            end
+        end
+        @test all(case_p .> 0)
     end
 end
