@@ -10,6 +10,7 @@ const CRC = ChainRulesCore
 
 export distance_to_set, projection_on_set, projection_gradient_on_set
 
+include("sets.jl")
 include("utils.jl")
 include("distances.jl")
 include("distance_sets.jl")

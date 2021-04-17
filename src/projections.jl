@@ -339,7 +339,7 @@ end
 derivative of projection of vector `v` on Nonpositives cone i.e. K = R^n-
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
-    y = (-sign.(v) .+ one(T))/2
+    y = @. (-sign(v) + one(T))/2
     return LinearAlgebra.Diagonal(y)
 end
 
@@ -362,7 +362,7 @@ function projection_gradient_on_set(::NormedEpigraphDistance{p}, v::AbstractVect
         norm_x     x';
         x          (norm_x + t)*Matrix{T}(LinearAlgebra.I,n-1,n-1) - (t/(norm_x^2))*(x*x')
     ]
-    result /= (2 * norm_x)
+    result ./= (2 * norm_x)
     return result
 end
 
@@ -478,14 +478,46 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
 end
 
 """
-    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet})
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::AbstractVector{<:MOI.AbstractSet})
 
 Derivative of the projection of vector `v` on product of `sets`
 projection_gradient_on_set[i,j] = ∂projection_on_set[i] / ∂v[j] where `projection_on_set` denotes projection of `v` on `cone`
 
 Find expression of projections on cones and their derivatives here: https://stanford.edu/~boyd/papers/pdf/cone_prog_refine.pdf
 """
-function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet}) where {T}
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::AbstractVector{<:MOI.AbstractSet}) where {T}
     length(v) == length(sets) || throw(DimensionMismatch("Mismatch between value and set"))
     return BlockDiagonal([projection_gradient_on_set(DefaultDistance(), v[i], sets[i]) for i in eachindex(sets)])
+end
+
+"""
+    projection_on_set(::DefaultDistance, V::AbstractVector{T}, s::NormBallNuclear{T}) where {T}
+
+projection of matrix `V` onto nuclear norm ball
+"""
+function projection_on_set(d::DefaultDistance, V::AbstractMatrix{T}, s::NormNuclearBall{T}) where {T}
+    U, sing_val, Vt = LinearAlgebra.svd(V)
+    if (sum(sing_val) <= s.radius)
+        return V
+    end
+    sing_val_proj = projection_on_set(d, sing_val, ProbabilitySimplex(length(sing_val), s.radius))
+    return U * Diagonal(sing_val_proj) * Vt'
+end
+
+# initial implementation in FrankWolfe.jl
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::ProbabilitySimplex{T}) where {T}
+    # TODO: allocating a ton, should implement the recent non-sorting alg
+    n = length(x)
+    if sum(v) ≈ s.radius && all(>=(0), v)
+        return v
+    end
+    rev = v .- maximum(v)
+    u = sort(rev, rev=true)
+    cssv = cumsum(u)
+    rho = sum(eachindex(u)) do idx
+        u[idx] * idx > (cssv[idx] - s.radius)
+    end - 1
+    theta = (cssv[rho+1] - s.radius) / (rho + 1)
+    w = clamp.(rev .- theta, 0.0, Inf)
+    return w
 end
