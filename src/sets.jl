@@ -28,7 +28,7 @@ struct NormBallFromCone{T, S <: MOI.AbstractSet} <: MOI.AbstractScalarSet
 end
 
 const NormOneBall{T} = NormBallFromCone{T, MOI.NormOneCone}
-const NormInfBall{T} = NormBallFromCone{T, MOI.NormInfinityCone}
+const NormInfinityBall{T} = NormBallFromCone{T, MOI.NormInfinityCone}
 const NormTwoBall{T} = NormBallFromCone{T, MOI.SecondOrderCone}
 const NormNuclearBall{T} = NormBallFromCone{T, MOI.NormNuclearCone}
 
