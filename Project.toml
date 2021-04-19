@@ -17,10 +17,11 @@ ChainRulesCore = "0.9"
 FillArrays = "0.10, 0.11"
 FiniteDifferences = "0.12"
 MathOptInterface = "0.9"
-julia = "1"
+julia = "1.5"
 
 [extras]
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"
+Hypatia = "b99e6be6-89ff-11e8-14f8-45c827f4f8f2"
 FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
@@ -28,4 +29,4 @@ SCS = "c946c3f1-0d1f-5ce8-9dea-7daa1f7e2d13"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "ChainRulesTestUtils", "FiniteDifferences", "JuMP", "SCS", "Random"]
+test = ["Test", "ChainRulesTestUtils", "FiniteDifferences", "Hypatia", "JuMP", "SCS", "Random"]
