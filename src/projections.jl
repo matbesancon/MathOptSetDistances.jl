@@ -511,8 +511,9 @@ end
 
 # initial implementation in FrankWolfe.jl
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::ProbabilitySimplex{T}) where {T}
+    _check_dimension(v, s)
     # TODO: allocating a ton, should implement the recent non-sorting alg
-    n = length(x)
+    n = length(v)
     if sum(v) ≈ s.radius && all(>=(0), v)
         return v
     end
@@ -525,6 +526,28 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::Probabili
     theta = (cssv[rho+1] - s.radius) / (rho + 1)
     w = clamp.(rev .- theta, 0.0, Inf)
     return w
+end
+
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::StandardSimplex{T}) where {T}
+    _check_dimension(v, s)
+    n = length(v)
+    if sum(v) ≤ s.radius && all(>=(0), v)
+        return v
+    end
+    x = copy(v)
+    sum_pos = zero(T)
+    for idx in eachindex(x)
+        if x[idx] < 0
+            x[idx] = 0
+        else
+            sum_pos += x[idx]
+        end
+    end
+    # at least one positive element
+    if sum_pos > 0
+        @. x = x / sum_pos * s.radius
+    end
+    return x
 end
 
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormInfinityBall{T}) where {T}

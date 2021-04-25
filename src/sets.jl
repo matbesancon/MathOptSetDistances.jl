@@ -2,7 +2,7 @@
 """
 Represents the standard simplex: `∑x_i ≤ radius, x_i ≥ 0`.
 """
-struct StandardSimplex{T} <: MOI.AbstractScalarSet
+struct StandardSimplex{T} <: MOI.AbstractVectorSet
     dimension::Int
     radius::T
 end
@@ -10,19 +10,20 @@ end
 """
 Represents the probability simplex: `∑x_i == radius, x_i ≥ 0`.
 """
-struct ProbabilitySimplex{T} <: MOI.AbstractScalarSet
+struct ProbabilitySimplex{T} <: MOI.AbstractVectorSet
     dimension::Int
     radius::T
 end
 
 MOI.constant(s::Union{StandardSimplex, ProbabilitySimplex}) = s.radius
+MOI.dimension(s::Union{StandardSimplex, ProbabilitySimplex}) = s.dimension
 
 """
     NormBallFromCone{T, S}
 
 Represents a norm ball built from the corresponding cone with a fixed radius.
 """
-struct NormBallFromCone{T, S <: MOI.AbstractSet} <: MOI.AbstractScalarSet
+struct NormBallFromCone{T, S <: MOI.AbstractSet} <: MOI.AbstractVectorSet
     radius::Int
     cone::S
 end

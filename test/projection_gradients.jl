@@ -190,7 +190,7 @@ end
         case_p = zeros(4)
         case_d = zeros(4)
         # Adjust tolerance down because a 1-2 errors when projection ends up
-        #   very close to the z axis
+        # very close to the z axis
         # For intuition, see Fig 5.1 https://docs.mosek.com/modeling-cookbook/expo.html
         #   Note that their order is reversed: (x, y, z) = (x3, x2, x1) [theirs]
         tol = 1e-6
