@@ -138,8 +138,8 @@ end
     exponents = [10, 20]
     domain = [-exp.(exponents); 0.0; exp.(exponents)]
     x = randn(3)
-    @inferred MOD.projection_on_set(DD, x, MOD.ExponentialCone())
-    @inferred MOD.projection_on_set(DD, x, MOD.DualExponentialCone())
+    @inferred MOD.projection_on_set(DD, x, MOI.ExponentialCone())
+    @inferred MOD.projection_on_set(DD, x, MOI.DualExponentialCone())
     for (x1, x2, x3) in Iterators.product(domain, domain, domain)
         # x = randn(3)
         x = [x1, x2, x3]
