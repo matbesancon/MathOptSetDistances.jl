@@ -171,14 +171,14 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
     _check_dimension(v, s)
 
     if _in_exp_cone(v; dual=false)
-        return v
+        return SVector{3}(v)
     end
     if _in_exp_cone(-v; dual=true)
         # if in polar cone Ko = -K*
-        return zeros(T, 3)
+        return zeros(SVector{3,T})
     end
     if v[1] <= 0 && v[2] <= 0
-        return [v[1], 0, max(v[3],0)]
+        return @SVector([v[1], 0, max(v[3],0)])
     end
 
     return _exp_cone_proj_case_4(v; tol=tol)
@@ -188,7 +188,7 @@ function _in_exp_cone(v::AbstractVector{T}; dual=false, tol=1e-8) where {T}
     if dual
         return (
             (isapprox(v[1], 0, atol=tol) && v[2] >= 0 && v[3] >= 0) ||
-            (v[1] < 0 && v[1]*exp(v[2]/v[1]) + ℯ*v[3] >= tol)
+            (v[1] < 0 && v[1]*exp(v[2]/v[1]) + ℯ * v[3] >= tol)
         )
     else
         return (
@@ -201,18 +201,18 @@ end
 function _exp_cone_proj_case_4(v::AbstractVector{T}; tol=1e-8) where {T}
     # Try Heuristic solutions [Friberg 2021, Lemma 5.1]
     # vp = proj onto primal cone, vd = proj onto polar cone
-    vp = [min(v[1], 0), zero(T), max(v[3], 0)]
-    vd = [zero(T), min(v[2], 0), min(v[3], 0)]
+    vp = SVector{3,T}(min(v[1], 0), zero(T), max(v[3], 0))
+    vd = SVector{3,T}(zero(T), min(v[2], 0), min(v[3], 0))
     if v[2] > 0
         zp = max(v[3], v[2]*exp(v[1]/v[2]))
         if zp - v[3] < norm(vp - v)
-            vp = [v[1], v[2], zp]
+            vp = SVector{3,T}(v[1], v[2], zp)
         end
     end
     if v[1] > 0
         zd = min(v[3], -v[1]*exp(v[2]/v[1] - 1))
         if v[3] - zd < norm(vd - v)
-            vd = [v[1], v[2], zd]
+            vd = SVector{3,T}(v[1], v[2], zd)
         end
     end
 
@@ -261,7 +261,7 @@ function _exp_cone_proj_case_4(v::AbstractVector{T}; tol=1e-8) where {T}
         error("Failure in root-finding for exp cone projection with boundaries ($lb, $ub).")
     end
 
-    return ((x - 1) * r + s)/(x^2 - x + 1) * [x, 1, exp(x)]
+    return ((x - 1) * r + s)/(x^2 - x + 1) * SVector{3,T}(x, 1, exp(x))
 end
 
 """
@@ -277,7 +277,8 @@ by Neal Parikh and Stephen Boyd.
 by Henrik Friberg
 """
 function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
-    return v + projection_on_set(d, -v, MOI.ExponentialCone())
+    p = projection_on_set(d, -v, MOI.ExponentialCone())
+    return SVector{3,T}(v[1] + p[1], v[2] + p[2], v[3] + p[3])
 end
 
 """
@@ -437,14 +438,18 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     _check_dimension(v, s)
 
     if _in_exp_cone(v; dual=false)
-        return Matrix{T}(I, 3, 3)
+        return SMatrix{3,3,T}(I)
     end
     if _in_exp_cone(-v; dual=true)
         # if in polar cone Ko = -K*
-        return zeros(T, 3, 3)
+        return zeros(SMatrix{3,3,T})
     end
     if v[1] <= 0 && v[2] <= 0
-        return LinearAlgebra.diagm(0 => T[1, 0, v[3] >= 0])
+        return @SMatrix(T[
+            1 0 0
+            0 0 0
+            0 0 (v[3] >= 0)
+        ])
     end
 
     z1, z2, z3 = _exp_cone_proj_case_4(v)
@@ -452,13 +457,13 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     rs = z1/z2
     exp_rs = exp(rs)
 
-    mat = inv([
+    mat = inv(@SMatrix([
         1+nu*exp_rs/z2     -nu*exp_rs*rs/z2       0     exp_rs;
         -nu*exp_rs*rs/z2   1+nu*exp_rs*rs^2/z2    0     (1-rs)*exp_rs;
         0                  0                      1     -1
         exp_rs             (1-rs)*exp_rs          -1    0
-    ])
-    return mat[1:3,1:3]
+    ]))
+    return SMatrix{3,3}(@view(mat[1:3,1:3]))
 end
 
 """
