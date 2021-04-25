@@ -198,7 +198,7 @@ end
             v = 5*randn(3)
             @testset "Primal Cone" begin
                 case_p[det_case_exp_cone(v; dual=false)] += 1
-                dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                dΠ = @inferred MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
                 grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                 grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                 @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
@@ -207,7 +207,7 @@ end
 
             @testset "Dual Cone" begin
                 case_d[det_case_exp_cone(v; dual=true)] += 1
-                dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, sd)
+                dΠ = @inferred MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, sd)
                 grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
                 grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
                 @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)

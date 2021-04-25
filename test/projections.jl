@@ -114,7 +114,8 @@ end
 
         model = Model()
         set_optimizer(model, optimizer_with_attributes(
-            SCS.Optimizer, "eps" => 1e-10, "max_iters" => 10000, "verbose" => 0))
+            SCS.Optimizer, "eps" => 1e-10, "max_iters" => 10000, "verbose" => 0,
+        ))
         @variable(model, z[1:3])
         @variable(model, t)
         @objective(model, Min, t)
@@ -136,6 +137,9 @@ end
     case_d = zeros(4)
     exponents = [10, 20]
     domain = [-exp.(exponents); 0.0; exp.(exponents)]
+    x = randn(3)
+    @inferred MOD.projection_on_set(DD, x, MOD.ExponentialCone())
+    @inferred MOD.projection_on_set(DD, x, MOD.DualExponentialCone())
     for (x1, x2, x3) in Iterators.product(domain, domain, domain)
         # x = randn(3)
         x = [x1, x2, x3]
