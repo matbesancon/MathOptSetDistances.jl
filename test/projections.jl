@@ -159,3 +159,34 @@ end
     end
     @test all(case_p .> 0) && all(case_d .> 0)
 end
+
+@testset "Simplex projections" begin
+    for n in (1, 2, 10)
+        for _ in 1:10
+            s = MOD.StandardSimplex(n, rand())
+            sp = MOD.ProbabilitySimplex(n, rand())
+            for _ in 1:5
+                v = 10 * randn(n)
+                p = MOD.projection_on_set(DD, v, s)
+                @test all(p .>= 0)
+                @test any(v .> 0) || sum(p) ≈ 0
+                if sum(p) > 0
+                    @test sum(p) ≈ min(s.radius, sum(abs, v))
+                end
+                p = MOD.projection_on_set(DD, v, sp)
+                @test all(p .>= 0)
+                @test sum(p) ≈ sp.radius
+                vu = rand(n)
+                vu ./= sum(vu)
+                vu .*= 0.9 * s.radius
+                @test vu ≈ MOD.projection_on_set(DD, vu, s)
+                vu ./= sum(vu)
+                vu .*= 0.9 * sp.radius
+                @test !≈(vu, MOD.projection_on_set(DD, vu, sp))
+                vu ./= sum(vu)
+                vu .*= sp.radius 
+                @test ≈(vu, MOD.projection_on_set(DD, vu, sp))
+            end
+        end
+    end
+end

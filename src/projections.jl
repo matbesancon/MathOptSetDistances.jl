@@ -340,7 +340,7 @@ end
 derivative of projection of vector `v` on Nonpositives cone i.e. K = R^n-
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
-    y = (-sign.(v) .+ one(T))/2
+    y = @. (-sign(v) + one(T))/2
     return LinearAlgebra.Diagonal(y)
 end
 
@@ -363,7 +363,7 @@ function projection_gradient_on_set(::NormedEpigraphDistance{p}, v::AbstractVect
         norm_x     x';
         x          (norm_x + t)*Matrix{T}(LinearAlgebra.I,n-1,n-1) - (t/(norm_x^2))*(x*x')
     ]
-    result /= (2 * norm_x)
+    result ./= (2 * norm_x)
     return result
 end
 
@@ -483,14 +483,115 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
 end
 
 """
-    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet})
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::AbstractVector{<:MOI.AbstractSet})
 
 Derivative of the projection of vector `v` on product of `sets`
 projection_gradient_on_set[i,j] = ∂projection_on_set[i] / ∂v[j] where `projection_on_set` denotes projection of `v` on `cone`
 
 Find expression of projections on cones and their derivatives here: https://stanford.edu/~boyd/papers/pdf/cone_prog_refine.pdf
 """
-function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet}) where {T}
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::AbstractVector{<:MOI.AbstractSet}) where {T}
     length(v) == length(sets) || throw(DimensionMismatch("Mismatch between value and set"))
     return BlockDiagonal([projection_gradient_on_set(DefaultDistance(), v[i], sets[i]) for i in eachindex(sets)])
+end
+
+"""
+    projection_on_set(::DefaultDistance, V::AbstractVector{T}, s::NormBallNuclear{T}) where {T}
+
+projection of matrix `V` onto nuclear norm ball
+"""
+function projection_on_set(d::DefaultDistance, V::AbstractMatrix{T}, s::NormNuclearBall{T}) where {T}
+    U, sing_val, Vt = LinearAlgebra.svd(V)
+    if (sum(sing_val) <= s.radius)
+        return V
+    end
+    sing_val_proj = projection_on_set(d, sing_val, ProbabilitySimplex(length(sing_val), s.radius))
+    return U * Diagonal(sing_val_proj) * Vt'
+end
+
+# initial implementation in FrankWolfe.jl
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::ProbabilitySimplex{T}) where {T}
+    _check_dimension(v, s)
+    # TODO: allocating a ton, should implement the recent non-sorting alg
+    n = length(v)
+    if sum(v) ≈ s.radius && all(>=(0), v)
+        return v
+    end
+    rev = v .- maximum(v)
+    u = sort(rev, rev=true)
+    cssv = cumsum(u)
+    rho = sum(eachindex(u)) do idx
+        u[idx] * idx > (cssv[idx] - s.radius)
+    end - 1
+    theta = (cssv[rho+1] - s.radius) / (rho + 1)
+    w = clamp.(rev .- theta, 0.0, Inf)
+    return w
+end
+
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::StandardSimplex{T}) where {T}
+    _check_dimension(v, s)
+    n = length(v)
+    if sum(v) ≤ s.radius && all(>=(0), v)
+        return v
+    end
+    x = copy(v)
+    sum_pos = zero(T)
+    for idx in eachindex(x)
+        if x[idx] < 0
+            x[idx] = 0
+        else
+            sum_pos += x[idx]
+        end
+    end
+    # at least one positive element
+    if sum_pos > 0
+        @. x = x / sum_pos * s.radius
+    end
+    return x
+end
+
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormInfinityBall{T}) where {T}
+    if norm(v, Inf) <= s.radius
+        return v
+    end
+    return clamp.(v, -s.radius, s.radius)
+end
+
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormTwoBall{T}) where {T}
+    nv = norm(v)
+    if nv <= s.radius
+        return v
+    end
+    return v .* s.radius ./ nv
+end
+
+# inspired by https://github.com/MPF-Optimization-Laboratory/ProjSplx.jl
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormOneBall{T}) where {T}
+    n = length(v)
+    if norm(v, 1) ≤ τ
+        return v
+    end
+    u = abs.(v)
+    # simplex projection
+    bget = false
+    s_indices = sortperm(u, rev=true)
+    tsum = zero(τ)
+
+    @inbounds for i in 1:n-1
+        tsum += u[s_indices[i]]
+        tmax = (tsum - τ) / i
+        if tmax ≥ u[s_indices[i+1]]
+            bget = true
+            break
+        end
+    end
+    if !bget
+        tmax = (tsum + u[s_indices[n]] - τ) / n
+    end
+
+    @inbounds for i in 1:n
+        u[i] = max(u[i] - tmax, 0)
+        u[i] *= sign(v[i])
+    end
+    return u
 end

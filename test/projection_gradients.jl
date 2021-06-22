@@ -13,6 +13,13 @@ const ffdm = FiniteDifferences.forward_fdm(5, 1)
 
 import ChainRulesCore
 const CRC = ChainRulesCore
+import FillArrays
+
+# type piracy because of https://github.com/JuliaDiff/FiniteDifferences.jl/issues/177
+function FiniteDifferences.to_vec(x::FillArrays.Zeros)
+    v = collect(x)
+    return v, _ -> error("can't create `Zeros` from a vector")
+end
 
 """
 A multivariate Gaussian generator without points too close to 0
@@ -190,7 +197,7 @@ end
         case_p = zeros(4)
         case_d = zeros(4)
         # Adjust tolerance down because a 1-2 errors when projection ends up
-        #   very close to the z axis
+        # very close to the z axis
         # For intuition, see Fig 5.1 https://docs.mosek.com/modeling-cookbook/expo.html
         #   Note that their order is reversed: (x, y, z) = (x3, x2, x1) [theirs]
         tol = 1e-6
