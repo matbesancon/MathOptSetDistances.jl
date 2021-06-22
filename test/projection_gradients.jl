@@ -13,6 +13,13 @@ const ffdm = FiniteDifferences.forward_fdm(5, 1)
 
 import ChainRulesCore
 const CRC = ChainRulesCore
+import FillArrays
+
+# type piracy because of https://github.com/JuliaDiff/FiniteDifferences.jl/issues/177
+function FiniteDifferences.to_vec(x::FillArrays.Zeros)
+    v = collect(x)
+    return v, _ -> error("can't create `Zeros` from a vector")
+end
 
 """
 A multivariate Gaussian generator without points too close to 0
