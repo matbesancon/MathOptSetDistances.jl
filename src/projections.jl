@@ -306,7 +306,7 @@ end
 derivative of projection of vector `v` on real cone i.e. K = R^n
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Reals) where {T}
-    return LinearAlgebra.Diagonal(ones(length(v)))
+    return FillArrays.Eye(length(v))
 end
 
 """
