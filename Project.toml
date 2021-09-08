@@ -17,7 +17,7 @@ BlockDiagonals = "0.1"
 ChainRulesCore = "0.9"
 FillArrays = "0.10, 0.11"
 FiniteDifferences = "0.12"
-MathOptInterface = "0.9"
+MathOptInterface = "0.9, 0.10"
 StaticArrays = "1.1"
 julia = "1"
 
