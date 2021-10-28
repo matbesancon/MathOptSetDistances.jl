@@ -5,12 +5,6 @@ const MOI = MathOptInterface
 using MathOptSetDistances
 const MOD = MathOptSetDistances
 
-using FiniteDifferences
-using LinearAlgebra
-
-const bfdm = FiniteDifferences.backward_fdm(5, 1)
-const ffdm = FiniteDifferences.forward_fdm(5, 1)
-
 import ChainRulesCore
 const CRC = ChainRulesCore
 import FillArrays

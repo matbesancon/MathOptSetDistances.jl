@@ -1,5 +1,4 @@
 using JuMP, SCS
-const DD = MOD.DefaultDistance()
 
 @testset "Test projections distance on vector sets" begin
     for n in [1, 10] # vector sizes

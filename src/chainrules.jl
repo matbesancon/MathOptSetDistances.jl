@@ -10,6 +10,7 @@ end
 function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::T, s::MOI.LessThan) where {T}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
+        Δvproj = ChainRulesCore.unthunk(Δvproj)
         if vproj == v # if exactly equal, then constraint inactive
             return (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), Δvproj, ChainRulesCore.Tangent{typeof(s)}(upper=zero(Δvproj)))
         end
@@ -21,6 +22,7 @@ end
 function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::T, s::MOI.GreaterThan) where {T}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
+        Δvproj = ChainRulesCore.unthunk(Δvproj)
         if vproj == v # if exactly equal, then constraint inactive
             return (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), Δvproj, ChainRulesCore.Tangent{typeof(s)}(lower=zero(Δvproj)))
         end
@@ -60,6 +62,7 @@ end
 function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::S) where {T,S <: Union{MOI.Nonnegatives,MOI.Nonpositives}}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
+        Δvproj = ChainRulesCore.unthunk(Δvproj)
         v̄ = zeros(eltype(Δvproj), length(Δvproj))
         for i in eachindex(Δvproj)
             if vproj[i] == v[i]
@@ -77,6 +80,7 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
     x = v[2:end]
     norm_x = LinearAlgebra.norm2(x)
     function projection_on_set_pullback(Δv)
+        Δv = ChainRulesCore.unthunk(Δv)
         Δt = Δv[1]
         Δx = Δv[2:end]
         v̄ = zeros(eltype(Δv), length(Δv))
@@ -89,7 +93,6 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
         end
         inv_norm = inv(2norm_x)
         v̄[1] = inv_norm * sum(Δx[i] * x[i] for i in eachindex(x)) + Δt / 2
-        dot_prod = LinearAlgebra.dot(x, Δx)
         inv_sq = inv(norm_x^2)
         cons_mul_last = inv_norm * inv_sq * t * x ⋅ Δx
         for i in eachindex(x)
