@@ -261,7 +261,7 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.SOS1) wh
 end
 
 # takes in input [z, f(x)]
-function distance_to_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.IndicatorSet{A}) where {A, T <: Real}
+function distance_to_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Indicator{A}) where {A, T <: Real}
     _check_dimension(v, s)
     z = v[1]
     # inactive constraint
