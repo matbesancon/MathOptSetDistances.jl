@@ -170,7 +170,7 @@ end
                 @test all(p .>= 0)
                 @test any(v .> 0) || sum(p) ≈ 0
                 if sum(p) > 0
-                    @test sum(p) ≈ min(s.radius, sum(abs, v))
+                    @test sum(p) <= s.radius
                 end
                 p = MOD.projection_on_set(DD, v, sp)
                 @test all(p .>= 0)
