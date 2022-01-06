@@ -131,7 +131,7 @@ end
     end
 
     Random.seed!(0)
-    tol = 1e-6
+    tol = 1e-5
     case_p = zeros(4)
     case_d = zeros(4)
     exponents = [10, 20]
