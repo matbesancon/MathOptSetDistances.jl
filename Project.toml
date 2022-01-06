@@ -1,7 +1,7 @@
 name = "MathOptSetDistances"
 uuid = "3b969827-a86c-476c-9527-bb6f1a8fbad5"
 authors = ["Mathieu Besançon"]
-version = "0.1.1"
+version = "0.1.4"
 
 [deps]
 BlockDiagonals = "0a1fb500-61f7-11e9-3c65-f5ef3456f9f0"
@@ -10,14 +10,16 @@ FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 BlockDiagonals = "0.1"
-ChainRulesCore = "0.9"
-FillArrays = "0.10, 0.11"
+ChainRulesCore = "1"
+FillArrays = "0.12"
 FiniteDifferences = "0.12"
-MathOptInterface = "0.9"
-julia = "1.5"
+MathOptInterface = "0.10"
+StaticArrays = "1.1"
+julia = "1"
 
 [extras]
 ChainRulesTestUtils = "cdddcdb0-9152-4a09-a978-84456f9df70a"

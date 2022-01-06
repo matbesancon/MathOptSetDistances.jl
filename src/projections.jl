@@ -171,14 +171,14 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Expon
     _check_dimension(v, s)
 
     if _in_exp_cone(v; dual=false)
-        return v
+        return SVector{3}(v)
     end
     if _in_exp_cone(-v; dual=true)
         # if in polar cone Ko = -K*
-        return zeros(T, 3)
+        return zeros(SVector{3,T})
     end
     if v[1] <= 0 && v[2] <= 0
-        return [v[1], 0, max(v[3],0)]
+        return @SVector([v[1], 0, max(v[3],0)])
     end
 
     return _exp_cone_proj_case_4(v; tol=tol)
@@ -188,7 +188,7 @@ function _in_exp_cone(v::AbstractVector{T}; dual=false, tol=1e-8) where {T}
     if dual
         return (
             (isapprox(v[1], 0, atol=tol) && v[2] >= 0 && v[3] >= 0) ||
-            (v[1] < 0 && v[1]*exp(v[2]/v[1]) + ℯ*v[3] >= tol)
+            (v[1] < 0 && v[1]*exp(v[2]/v[1]) + ℯ * v[3] >= tol)
         )
     else
         return (
@@ -201,18 +201,18 @@ end
 function _exp_cone_proj_case_4(v::AbstractVector{T}; tol=1e-8) where {T}
     # Try Heuristic solutions [Friberg 2021, Lemma 5.1]
     # vp = proj onto primal cone, vd = proj onto polar cone
-    vp = [min(v[1], 0), zero(T), max(v[3], 0)]
-    vd = [zero(T), min(v[2], 0), min(v[3], 0)]
+    vp = SVector{3,T}(min(v[1], 0), zero(T), max(v[3], 0))
+    vd = SVector{3,T}(zero(T), min(v[2], 0), min(v[3], 0))
     if v[2] > 0
         zp = max(v[3], v[2]*exp(v[1]/v[2]))
         if zp - v[3] < norm(vp - v)
-            vp = [v[1], v[2], zp]
+            vp = SVector{3,T}(v[1], v[2], zp)
         end
     end
     if v[1] > 0
         zd = min(v[3], -v[1]*exp(v[2]/v[1] - 1))
         if v[3] - zd < norm(vd - v)
-            vd = [v[1], v[2], zd]
+            vd = SVector{3,T}(v[1], v[2], zd)
         end
     end
 
@@ -261,7 +261,7 @@ function _exp_cone_proj_case_4(v::AbstractVector{T}; tol=1e-8) where {T}
         error("Failure in root-finding for exp cone projection with boundaries ($lb, $ub).")
     end
 
-    return ((x - 1) * r + s)/(x^2 - x + 1) * [x, 1, exp(x)]
+    return ((x - 1) * r + s)/(x^2 - x + 1) * SVector{3,T}(x, 1, exp(x))
 end
 
 """
@@ -277,7 +277,8 @@ by Neal Parikh and Stephen Boyd.
 by Henrik Friberg
 """
 function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
-    return v + projection_on_set(d, -v, MOI.ExponentialCone())
+    p = projection_on_set(d, -v, MOI.ExponentialCone())
+    return SVector{3,T}(v[1] + p[1], v[2] + p[2], v[3] + p[3])
 end
 
 """
@@ -405,7 +406,7 @@ end
 derivative of projection of vector `v` on real cone i.e. K = R^n
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Reals) where {T}
-    return LinearAlgebra.Diagonal(ones(length(v)))
+    return FillArrays.Eye(length(v))
 end
 
 """
@@ -439,7 +440,7 @@ end
 derivative of projection of vector `v` on Nonpositives cone i.e. K = R^n-
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.Nonpositives) where {T}
-    y = (-sign.(v) .+ one(T))/2
+    y = @. (-sign(v) + one(T))/2
     return LinearAlgebra.Diagonal(y)
 end
 
@@ -462,7 +463,7 @@ function projection_gradient_on_set(::NormedEpigraphDistance{p}, v::AbstractVect
         norm_x     x';
         x          (norm_x + t)*Matrix{T}(LinearAlgebra.I,n-1,n-1) - (t/(norm_x^2))*(x*x')
     ]
-    result /= (2 * norm_x)
+    result ./= (2 * norm_x)
     return result
 end
 
@@ -537,14 +538,18 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     _check_dimension(v, s)
 
     if _in_exp_cone(v; dual=false)
-        return Matrix{T}(I, 3, 3)
+        return SMatrix{3,3,T}(I)
     end
     if _in_exp_cone(-v; dual=true)
         # if in polar cone Ko = -K*
-        return zeros(T, 3, 3)
+        return zeros(SMatrix{3,3,T})
     end
     if v[1] <= 0 && v[2] <= 0
-        return LinearAlgebra.diagm(0 => T[1, 0, v[3] >= 0])
+        return @SMatrix(T[
+            1 0 0
+            0 0 0
+            0 0 (v[3] >= 0)
+        ])
     end
 
     z1, z2, z3 = _exp_cone_proj_case_4(v)
@@ -552,13 +557,13 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     rs = z1/z2
     exp_rs = exp(rs)
 
-    mat = inv([
+    mat = inv(@SMatrix([
         1+nu*exp_rs/z2     -nu*exp_rs*rs/z2       0     exp_rs;
         -nu*exp_rs*rs/z2   1+nu*exp_rs*rs^2/z2    0     (1-rs)*exp_rs;
         0                  0                      1     -1
         exp_rs             (1-rs)*exp_rs          -1    0
-    ])
-    return mat[1:3,1:3]
+    ]))
+    return SMatrix{3,3}(@view(mat[1:3,1:3]))
 end
 
 """
@@ -665,14 +670,115 @@ function projection_gradient_on_set(d::DefaultDistance, v::AbstractVector{T}, s:
 end
 
 """
-    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet})
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::AbstractVector{<:MOI.AbstractSet})
 
 Derivative of the projection of vector `v` on product of `sets`
 projection_gradient_on_set[i,j] = ∂projection_on_set[i] / ∂v[j] where `projection_on_set` denotes projection of `v` on `cone`
 
 Find expression of projections on cones and their derivatives here: https://stanford.edu/~boyd/papers/pdf/cone_prog_refine.pdf
 """
-function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::Array{<:MOI.AbstractSet}) where {T}
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, sets::AbstractVector{<:MOI.AbstractSet}) where {T}
     length(v) == length(sets) || throw(DimensionMismatch("Mismatch between value and set"))
     return BlockDiagonal([projection_gradient_on_set(DefaultDistance(), v[i], sets[i]) for i in eachindex(sets)])
+end
+
+"""
+    projection_on_set(::DefaultDistance, V::AbstractVector{T}, s::NormBallNuclear{T}) where {T}
+
+projection of matrix `V` onto nuclear norm ball
+"""
+function projection_on_set(d::DefaultDistance, V::AbstractMatrix{T}, s::NormNuclearBall{T}) where {T}
+    U, sing_val, Vt = LinearAlgebra.svd(V)
+    if (sum(sing_val) <= s.radius)
+        return V
+    end
+    sing_val_proj = projection_on_set(d, sing_val, ProbabilitySimplex(length(sing_val), s.radius))
+    return U * Diagonal(sing_val_proj) * Vt'
+end
+
+# initial implementation in FrankWolfe.jl
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::ProbabilitySimplex{T}) where {T}
+    _check_dimension(v, s)
+    # TODO: allocating a ton, should implement the recent non-sorting alg
+    n = length(v)
+    if sum(v) ≈ s.radius && all(>=(0), v)
+        return v
+    end
+    rev = v .- maximum(v)
+    u = sort(rev, rev=true)
+    cssv = cumsum(u)
+    rho = sum(eachindex(u)) do idx
+        u[idx] * idx > (cssv[idx] - s.radius)
+    end - 1
+    theta = (cssv[rho+1] - s.radius) / (rho + 1)
+    w = clamp.(rev .- theta, 0.0, Inf)
+    return w
+end
+
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::StandardSimplex{T}) where {T}
+    _check_dimension(v, s)
+    n = length(v)
+    if sum(v) ≤ s.radius && all(>=(0), v)
+        return v
+    end
+    x = copy(v)
+    sum_pos = zero(T)
+    for idx in eachindex(x)
+        if x[idx] < 0
+            x[idx] = 0
+        else
+            sum_pos += x[idx]
+        end
+    end
+    # at least one positive element
+    if sum_pos > 0
+        @. x = x / sum_pos * s.radius
+    end
+    return x
+end
+
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormInfinityBall{T}) where {T}
+    if norm(v, Inf) <= s.radius
+        return v
+    end
+    return clamp.(v, -s.radius, s.radius)
+end
+
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormTwoBall{T}) where {T}
+    nv = norm(v)
+    if nv <= s.radius
+        return v
+    end
+    return v .* s.radius ./ nv
+end
+
+# inspired by https://github.com/MPF-Optimization-Laboratory/ProjSplx.jl
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormOneBall{T}) where {T}
+    n = length(v)
+    if norm(v, 1) ≤ τ
+        return v
+    end
+    u = abs.(v)
+    # simplex projection
+    bget = false
+    s_indices = sortperm(u, rev=true)
+    tsum = zero(τ)
+
+    @inbounds for i in 1:n-1
+        tsum += u[s_indices[i]]
+        tmax = (tsum - τ) / i
+        if tmax ≥ u[s_indices[i+1]]
+            bget = true
+            break
+        end
+    end
+    if !bget
+        tmax = (tsum + u[s_indices[n]] - τ) / n
+    end
+
+    @inbounds for i in 1:n
+        u[i] = max(u[i] - tmax, 0)
+        u[i] *= sign(v[i])
+    end
+    return u
 end

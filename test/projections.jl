@@ -1,5 +1,4 @@
 using JuMP, SCS
-const DD = MOD.DefaultDistance()
 
 @testset "Test projections distance on vector sets" begin
     for n in [1, 10] # vector sizes
@@ -114,7 +113,8 @@ end
 
         model = Model()
         set_optimizer(model, optimizer_with_attributes(
-            SCS.Optimizer, "eps" => 1e-10, "max_iters" => 10000, "verbose" => 0))
+            SCS.Optimizer, "eps" => 1e-10, "max_iters" => 10000, "verbose" => 0,
+        ))
         @variable(model, z[1:3])
         @variable(model, t)
         @objective(model, Min, t)
@@ -136,6 +136,9 @@ end
     case_d = zeros(4)
     exponents = [10, 20]
     domain = [-exp.(exponents); 0.0; exp.(exponents)]
+    x = randn(3)
+    @inferred MOD.projection_on_set(DD, x, MOI.ExponentialCone())
+    @inferred MOD.projection_on_set(DD, x, MOI.DualExponentialCone())
     for (x1, x2, x3) in Iterators.product(domain, domain, domain)
         # x = randn(3)
         x = [x1, x2, x3]
@@ -217,4 +220,33 @@ end
         end
     end
     @test all(case_p .> 0) && all(case_d .> 0)
+@testset "Simplex projections" begin
+    for n in (1, 2, 10)
+        for _ in 1:10
+            s = MOD.StandardSimplex(n, rand())
+            sp = MOD.ProbabilitySimplex(n, rand())
+            for _ in 1:5
+                v = 10 * randn(n)
+                p = MOD.projection_on_set(DD, v, s)
+                @test all(p .>= 0)
+                @test any(v .> 0) || sum(p) ≈ 0
+                if sum(p) > 0
+                    @test sum(p) <= s.radius + 10 * n * eps()
+                end
+                p = MOD.projection_on_set(DD, v, sp)
+                @test all(p .>= 0)
+                @test sum(p) ≈ sp.radius
+                vu = rand(n)
+                vu ./= sum(vu)
+                vu .*= 0.9 * s.radius
+                @test vu ≈ MOD.projection_on_set(DD, vu, s)
+                vu ./= sum(vu)
+                vu .*= 0.9 * sp.radius
+                @test !≈(vu, MOD.projection_on_set(DD, vu, sp))
+                vu ./= sum(vu)
+                vu .*= sp.radius 
+                @test ≈(vu, MOD.projection_on_set(DD, vu, sp))
+            end
+        end
+    end
 end

@@ -47,7 +47,7 @@ distance_to_set(::DefaultDistance, v::T, s::MOI.Interval) where {T <: Real} = ma
 function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.NormInfinityCone)
     _check_dimension(v, s)
     t = v[1]
-    xs = v[2:end]
+    xs = @view(v[2:end])
     result = maximum(abs, xs) - t
     return max(result, zero(result))
 end
@@ -55,7 +55,7 @@ end
 function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.NormOneCone)
     _check_dimension(v, s)
     t = v[1]
-    xs = v[2:end]
+    xs = @view(v[2:end])
     result = sum(abs, xs) - t
     return max(result, zero(result))
 end
@@ -63,7 +63,7 @@ end
 function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.SecondOrderCone)
     _check_dimension(v, s)
     t = v[1]
-    xs = v[2:end]
+    xs = @view(v[2:end])
     result = LinearAlgebra.norm2(xs) - t
     return max(result, zero(result))
 end
@@ -76,7 +76,7 @@ Composition of the projection with the p-norm.
 function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.SecondOrderCone) where {p}
     _check_dimension(v, s)
     t = v[1]
-    xs = v[2:end]
+    xs = @view(v[2:end])
     nx = LinearAlgebra.norm(xs, p)
     if nx <= t
         return zero(eltype(nx))
@@ -99,7 +99,7 @@ function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real},
     _check_dimension(v, s)
     t = v[1]
     u = v[2]
-    xs = v[3:end]
+    xs = @view(v[3:end])
     return LinearAlgebra.norm(
         (max(-t, zero(t)), max(-u, zero(u)), max(LinearAlgebra.dot(xs,xs) - 2 * t * u)),
         p,
@@ -113,7 +113,7 @@ end
 function distance_to_set(::DefaultDistance, v::AbstractVector{<:Real}, s::MOI.GeometricMeanCone)
     _check_dimension(v, s)
     t = v[1]
-    xs = v[2:end]
+    xs = @view(v[2:end])
     n = MOI.dimension(s) - 1
     xresult = LinearAlgebra.norm2(
         max.(-xs, zero(eltype(xs)))
@@ -206,13 +206,13 @@ function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real},
     _check_dimension(v, s)
     n = (dimension(set)-1) ÷ 2
     u = v[1]
-    v = v[2:(n+1)]
-    w = v[(n+2):end]
+    v = @view(v[2:(n+1)])
+    w = @view(v[(n+2):end])
     s = sum(w[i] * log(w[i]/v[i]) for i in eachindex(w))
     result = s - u
     return LinearAlgebra.norm(
         push!(
-            max.(v[2:end], zero(result)),
+            max.(@view(v[2:end]), zero(result)),
             max(result, zero(result)),
         ),
         p,
@@ -226,7 +226,7 @@ end
 function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.NormSpectralCone)
     _check_dimension(v, s)
     t = v[1]
-    m = reshape(v[2:end], (s.row_dim, s.column_dim))
+    m = reshape(@view(v[2:end]), (s.row_dim, s.column_dim))
     s1 = LinearAlgebra.svd(m).S[1]
     result = s1 - t
     return max(result, zero(result))
@@ -235,7 +235,7 @@ end
 function distance_to_set(::EpigraphViolationDistance, v::AbstractVector{<:Real}, s::MOI.NormNuclearCone)
     _check_dimension(v, s)
     t = v[1]
-    m = reshape(v[2:end], (s.row_dim, s.column_dim))
+    m = reshape(@view(v[2:end]), (s.row_dim, s.column_dim))
     s1 = sum(LinearAlgebra.svd(m).S)
     result = s1 - t
     return max(result, zero(result))
@@ -261,7 +261,7 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.SOS1) wh
 end
 
 # takes in input [z, f(x)]
-function distance_to_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.IndicatorSet{A}) where {A, T <: Real}
+function distance_to_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Indicator{A}) where {A, T <: Real}
     _check_dimension(v, s)
     z = v[1]
     # inactive constraint
