@@ -1,4 +1,4 @@
-using JuMP, SCS
+using JuMP, SCS, Hypatia
 
 @testset "Test projections distance on vector sets" begin
     for n in [1, 10] # vector sizes
@@ -176,9 +176,8 @@ end
 
     function _test_proj_pow_cone_help(x, α, tol; dual=false)
         cone = dual ? MOI.DualPowerCone(α) : MOI.PowerCone(α)
-        model = Model()
-        set_optimizer(model, optimizer_with_attributes(
-            SCS.Optimizer, "eps" => 1e-10, "max_iters" => 10000, "verbose" => 0))
+        model = Model(Hypatia.Optimizer)
+        MOI.set(model, MOI.Silent(), true)
         @variable(model, z[1:3])
         @variable(model, t)
         @objective(model, Min, t)
@@ -191,8 +190,8 @@ end
             error("x = $x\nα = $α\nnorm = $(norm(px - z_star))\npx=$px\ntrue=$z_star")
             return false
        end
-       if !MOD._in_pow_cone(px, cone)
-           error("x = $x\nα = $α\nnorm = $(norm(px - z_star))\npx=$px\ntrue=$z_star")
+       if !MOD._in_pow_cone(px, cone, tol=tol)
+           error("Not in power cone\nx = $x\nα = $α\nnorm = $(norm(px - z_star))\npx=$px\ntrue=$z_star")
            return false
        end
        return true
@@ -200,7 +199,7 @@ end
 
     Random.seed!(0)
     n = 3
-    atol = 2e-7
+    atol = 5e-6
     case_p = zeros(4)
     case_d = zeros(4)
     for _ in 1:100
