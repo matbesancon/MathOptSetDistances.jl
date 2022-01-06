@@ -37,15 +37,9 @@ function test_rrule_analytical(x, s; distance = MOD.DefaultDistance(), ntrials =
         if test_fdiff
             ChainRulesTestUtils.test_rrule(
                 MOD.projection_on_set,
-<<<<<<< HEAD
-                ChainRulesTestUtils.PrimalAndTangent(distance, CRC.DoesNotExist()),
-                ChainRulesTestUtils.PrimalAndTangent(x, xb),
-                ChainRulesTestUtils.PrimalAndTangent(s, CRC.DoesNotExist()),
-=======
                 ChainRulesTestUtils.PrimalAndTangent(distance, CRC.NoTangent()),
                 ChainRulesTestUtils.PrimalAndTangent(x, xb),
                 ChainRulesTestUtils.PrimalAndTangent(s, CRC.NoTangent()),
->>>>>>> master
                 atol=atol,rtol=rtol,
                 output_tangent=yb,
             )
@@ -60,18 +54,6 @@ end
         test_rrule_analytical(x, s, atol=1e-5, rtol=1e-5)
         s = MOI.Zeros(n)
         test_rrule_analytical(x, s, atol=1e-5, rtol=1e-5, test_fdiff=false)
-<<<<<<< HEAD
-        # requires FillArrays.Zero handling
-        # still broken?
-        @test_broken ChainRulesTestUtils.test_rrule(
-            MOD.projection_on_set,
-            ChainRulesTestUtils.PrimalAndTangent(MOD.DefaultDistance(), CRC.DoesNotExist()),
-            ChainRulesTestUtils.PrimalAndTangent(x, xb),
-            ChainRulesTestUtils.PrimalAndTangent(s, CRC.DoesNotExist()),
-            output_tangent=yb,
-        )
-=======
->>>>>>> master
         @testset "Orthant $s" for s in (MOI.Nonpositives(n), MOI.Nonnegatives(n))
             test_rrule_analytical(x, s)
         end
@@ -117,11 +99,7 @@ end
                 sb = ChainRulesTestUtils.rand_tangent(s)
                 ChainRulesTestUtils.test_rrule(
                     MOD.projection_on_set,
-<<<<<<< HEAD
-                    ChainRulesTestUtils.PrimalAndTangent(MOD.DefaultDistance(), CRC.DoesNotExist()),
-=======
                     ChainRulesTestUtils.PrimalAndTangent(MOD.DefaultDistance(), CRC.NoTangent()),
->>>>>>> master
                     ChainRulesTestUtils.PrimalAndTangent(x, xb),
                     ChainRulesTestUtils.PrimalAndTangent(s, sb),
                     output_tangent=yb,
@@ -143,15 +121,9 @@ end
                     Δv = ChainRulesTestUtils.rand_tangent(v)
                     ChainRulesTestUtils.test_frule(
                         MOD.projection_on_set,
-<<<<<<< HEAD
-                        ChainRulesTestUtils.PrimalAndTangent(MOD.DefaultDistance(), CRC.DoesNotExist()),
-                        ChainRulesTestUtils.PrimalAndTangent(v, Δv),
-                        ChainRulesTestUtils.PrimalAndTangent(s, CRC.DoesNotExist()),
-=======
                         ChainRulesTestUtils.PrimalAndTangent(DD, CRC.NoTangent()),
                         ChainRulesTestUtils.PrimalAndTangent(v, Δv),
                         ChainRulesTestUtils.PrimalAndTangent(s, CRC.NoTangent()),
->>>>>>> master
                         atol=1e-5,
                     )
                 end
@@ -172,15 +144,6 @@ end
                     for _ in 1:3
                         Δv .= ChainRulesTestUtils.rand_tangent(v)
                         v .= v0
-<<<<<<< HEAD
-                        (vproj, Δvproj) = CRC.frule((CRC.DoesNotExist(), CRC.DoesNotExist(), Δv, CRC.DoesNotExist()), MOD.projection_on_set, d, v, s)
-                        @test Δvproj ≈ Δv
-                        @test vproj ≈ v
-                        v .= -v0
-                        dΠ .= MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
-                        Π .= MOD.projection_on_set(MOD.DefaultDistance(), v, s)
-                        (vproj, Δvproj) = CRC.frule((CRC.DoesNotExist(), CRC.DoesNotExist(), Δv, CRC.DoesNotExist()), MOD.projection_on_set, d, v, s)
-=======
                         (vproj, Δvproj) = CRC.frule((CRC.NoTangent(), CRC.NoTangent(), Δv, CRC.NoTangent()), MOD.projection_on_set, DD, v, s)
                         @test Δvproj ≈ Δv
                         @test vproj ≈ v
@@ -188,7 +151,6 @@ end
                         dΠ .= MOD.projection_gradient_on_set(DD, v, s)
                         Π .= MOD.projection_on_set(DD, v, s)
                         (vproj, Δvproj) = CRC.frule((CRC.NoTangent(), CRC.NoTangent(), Δv, CRC.NoTangent()), MOD.projection_on_set, DD, v, s)
->>>>>>> master
                         @test dΠ * Δv ≈ Δvproj
                         @test vproj ≈ Π
                     end
@@ -267,11 +229,7 @@ end
                 @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
                 for _ in 1:20
                     Δv = 5*randn(3)
-<<<<<<< HEAD
-                    (vproj, Δvproj) = CRC.frule((CRC.DoesNotExist(), CRC.DoesNotExist(), Δv, CRC.DoesNotExist()), MOD.projection_on_set, DD, v, s)
-=======
                     (vproj, Δvproj) = CRC.frule((CRC.NoTangent(), CRC.NoTangent(), Δv, CRC.NoTangent()), MOD.projection_on_set, DD, v, s)
->>>>>>> master
                     @test dΠ * Δv ≈ Δvproj atol=tol
                     @test vproj ≈ vproj0
                 end
