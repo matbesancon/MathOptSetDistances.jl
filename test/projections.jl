@@ -220,6 +220,8 @@ end
         end
     end
     @test all(case_p .> 0) && all(case_d .> 0)
+end
+
 @testset "Simplex projections" begin
     for n in (1, 2, 10)
         for _ in 1:10
