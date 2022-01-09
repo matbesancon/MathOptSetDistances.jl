@@ -14,6 +14,7 @@ using FiniteDifferences
 
 const bfdm = FiniteDifferences.backward_fdm(5, 1)
 const ffdm = FiniteDifferences.forward_fdm(5, 1)
+const cfdm = FiniteDifferences.central_fdm(5, 1)
 
 include("distances.jl")
 include("projections.jl")

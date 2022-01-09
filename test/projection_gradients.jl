@@ -194,25 +194,37 @@ end
         # very close to the z axis
         # For intuition, see Fig 5.1 https://docs.mosek.com/modeling-cookbook/expo.html
         #   Note that their order is reversed: (x, y, z) = (x3, x2, x1) [theirs]
-        tol = 1e-6
+        tol = 5e-6
         for ii in 1:100
             v = 5*randn(3)
-            @testset "Primal Cone" begin
-                case_p[det_case_exp_cone(v; dual=false)] += 1
-                dΠ = @inferred MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
-                grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
-                grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
-                @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
-                @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+            # Primal Cone"
+            case_p[det_case_exp_cone(v; dual=false)] += 1
+            dΠ = @inferred MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+            grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+            grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+            grad_fdm3 = FiniteDifferences.jacobian(cfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+            @test size(grad_fdm1) == size(grad_fdm2) == size(grad_fdm3) == size(dΠ)
+            if !(≈(dΠ, grad_fdm1, atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol))
+                if dΠ != zero(dΠ)
+                    for gref in (grad_fdm1, grad_fdm2, grad_fdm3)
+                        @show(norm(dΠ - gref))
+                    end
+                    error("Exp cone\n")
+                end
             end
 
-            @testset "Dual Cone" begin
-                case_d[det_case_exp_cone(v; dual=true)] += 1
-                dΠ = @inferred MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, sd)
-                grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
-                grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
-                @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
-                @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+            # Dual Cone
+            case_d[det_case_exp_cone(v; dual=true)] += 1
+            dΠ = @inferred MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, sd)
+            grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
+            grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
+            grad_fdm3 = FiniteDifferences.jacobian(cfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
+            @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+            if !(≈(dΠ, grad_fdm1, atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol))
+                for gref in (grad_fdm1, grad_fdm2, grad_fdm3)
+                    @show(norm(dΠ - gref))
+                end
+                error("Exp dual cone: $(norm(dΠ)), $(grad_fdm3)\n")
             end
         end
         @test all(case_p .> 0) && all(case_d .> 0)

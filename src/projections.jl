@@ -455,6 +455,10 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     z1, z2, z3 = _exp_cone_proj_case_4(v)
     nu = z3 - v[3]
     rs = z1/z2
+    if !isfinite(rs)
+        @warn("Cannot differentiate heuristic solution")
+        rs = zero(rs)
+    end
     exp_rs = exp(rs)
 
     mat = inv(@SMatrix([
@@ -463,6 +467,9 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         0                  0                      1     -1
         exp_rs             (1-rs)*exp_rs          -1    0
     ]))
+    if isnan(norm(mat))
+        return zero(SMatrix{3,3,eltype(mat)})
+    end
     return SMatrix{3,3}(@view(mat[1:3,1:3]))
 end
 
