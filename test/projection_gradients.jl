@@ -224,7 +224,7 @@ end
                 for gref in (grad_fdm1, grad_fdm2, grad_fdm3)
                     @show(norm(dΠ - gref))
                 end
-                error("Exp dual cone: $(norm(dΠ)), $(grad_fdm3)\n")
+                error("Exp dual cone: $(norm(dΠ)), $(norm(grad_fdm3))\n")
             end
         end
         @test all(case_p .> 0) && all(case_d .> 0)
