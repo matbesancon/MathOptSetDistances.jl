@@ -113,7 +113,7 @@ end
 
         model = Model()
         set_optimizer(model, optimizer_with_attributes(
-            SCS.Optimizer, "eps" => 1e-10, "max_iters" => 10000, "verbose" => 0,
+            SCS.Optimizer, "eps_abs" => 1e-10, "eps_rel" => 1e-6, "max_iters" => 10000, "verbose" => 0,
         ))
         @variable(model, z[1:3])
         @variable(model, t)
