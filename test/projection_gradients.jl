@@ -185,7 +185,7 @@ end
             end
         end
 
-        Random.seed!(0)
+        rng = Random.MersenneTwister(0)
         s = MOI.ExponentialCone()
         sd = MOI.DualExponentialCone()
         case_p = zeros(4)
@@ -196,7 +196,7 @@ end
         #   Note that their order is reversed: (x, y, z) = (x3, x2, x1) [theirs]
         tol = 1e-5
         for ii in 1:100
-            v = 5*randn(3)
+            v = 5*randn(rng, 3)
             @testset "Primal Cone" begin
                 case_p[det_case_exp_cone(v; dual=false)] += 1
                 dΠ = @inferred MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
