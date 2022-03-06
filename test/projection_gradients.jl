@@ -28,6 +28,30 @@ function safe_randn(n)
     return v
 end
 
+
+"""
+A helper function for better errors on projection tests
+"""
+function _test_projection(v, set, dΠ, grad_fdm1, grad_fdm2, tol)
+    good1 = ≈(dΠ, grad_fdm1, atol=tol)
+    good2 = ≈(dΠ, grad_fdm2, atol=tol)
+    if good1 || good2
+        return true
+    end
+    error(
+        """
+        input:
+        v   = $v
+        set = $set
+        tol = $tol
+        projections:
+        dΠ        = $dΠ
+        grad_fdm1 = $grad_fdm1
+        grad_fdm2 = $grad_fdm2
+        """
+    )
+end
+
 @testset "Test gradients with finite differences" begin
     Ntrials = 10
     @testset "Dimension $n" for n in (1, 3, 10)
@@ -185,7 +209,9 @@ end
             end
         end
 
-        Random.seed!(0)
+        rng = Random.MersenneTwister(0)
+        # test NaN with default RNG from julia 1.7+
+        # Random.seed!(0)
         s = MOI.ExponentialCone()
         sd = MOI.DualExponentialCone()
         case_p = zeros(4)
@@ -194,16 +220,17 @@ end
         # very close to the z axis
         # For intuition, see Fig 5.1 https://docs.mosek.com/modeling-cookbook/expo.html
         #   Note that their order is reversed: (x, y, z) = (x3, x2, x1) [theirs]
-        tol = 1e-6
+        tol = 1e-4
         for ii in 1:100
-            v = 5*randn(3)
+            # v = 5*randn(3)
+            v = 5*randn(rng, 3)
             @testset "Primal Cone" begin
                 case_p[det_case_exp_cone(v; dual=false)] += 1
                 dΠ = @inferred MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
                 grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                 grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                 @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
-                @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+                @test _test_projection(v, s, dΠ, grad_fdm1, grad_fdm2, tol)
             end
 
             @testset "Dual Cone" begin
@@ -212,7 +239,36 @@ end
                 grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
                 grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
                 @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
-                @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol)
+                @test _test_projection(v, sd, dΠ, grad_fdm1, grad_fdm2, tol)
+            end
+        end
+        list_of_points = [
+            [0.04, -3, 11],  # https://github.com/matbesancon/MathOptSetDistances.jl/issues/63
+            -[0.04, -3, 11],
+            [0.01, -1, 1], # Friberg heuristic case 1
+            -[0.01, -1, 1],
+            [0, 1, 10], # Friberg heuristic case 2
+            -[0, 1, 10],
+            [0, 1, 0.5], # Friberg heuristic case 3
+            -[0, 1, 0.5],
+        ]
+        for v in list_of_points
+            @testset "Primal Cone" begin
+                case_p[det_case_exp_cone(v; dual=false)] += 1
+                dΠ = @inferred MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                @test _test_projection(v, s, dΠ, grad_fdm1, grad_fdm2, tol)
+            end
+
+            @testset "Dual Cone" begin
+                case_d[det_case_exp_cone(v; dual=true)] += 1
+                dΠ = @inferred MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, sd)
+                grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
+                grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
+                @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                @test _test_projection(v, sd, dΠ, grad_fdm1, grad_fdm2, tol)
             end
         end
         @test all(case_p .> 0) && all(case_d .> 0)
