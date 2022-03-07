@@ -217,7 +217,6 @@ end
         end
 
         rng = Random.MersenneTwister(0)
-        # test NaN with default RNG from julia 1.7+
         # Random.seed!(0)
         s = MOI.ExponentialCone()
         sd = MOI.DualExponentialCone()
@@ -299,10 +298,14 @@ end
 
         case_p = zeros(4)
         case_d = zeros(4)
-        Random.seed!(0)
+
+        rng = Random.MersenneTwister(0)
+        # review fails on power cone gradient
+        # Random.seed!(0)
         tol = 1e-5
         for ii in 1:100
-            v = 5*randn(3)
+            # v = 5*randn(3)
+            v = 5*randn(rng, 3)
             for α in [0.5; rand(0.05:0.05:0.95)]
                 if ii % 10 == 1
                     v[3] = 0.0
@@ -319,7 +322,7 @@ end
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                     @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol)
                     if !(≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol))
-                        error("v=$v\ndΠ = $dΠ\ncase=$case\nFD=$grad_fdm3")
+                        error("v=$v\ndΠ = $dΠ\ncase=$case\nFD1=$grad_fdm1\nFD2=$grad_fdm2\nFD3=$grad_fdm3")
                     end
                 end
 
@@ -333,7 +336,7 @@ end
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                     @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol)
                     if !(≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol))
-                        error("v=$v\ndΠ = $dΠ\ncase=$case\nFD=$grad_fdm3")
+                        error("v=$v\ndΠ = $dΠ\ncase=$case\nFD1=$grad_fdm1\nFD2=$grad_fdm2\nFD3=$grad_fdm3")
                     end
                 end
             end
