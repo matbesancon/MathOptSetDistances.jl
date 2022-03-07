@@ -1,4 +1,4 @@
-using JuMP, SCS, Hypatia
+using MathOptInterface, SCS, Hypatia
 
 @testset "Test projections distance on vector sets" begin
     for n in [1, 10] # vector sizes
@@ -111,19 +111,41 @@ end
             return true
         end
 
-        model = Model()
-        set_optimizer(model, optimizer_with_attributes(
-            SCS.Optimizer, "eps" => 1e-10, "max_iters" => 10000, "verbose" => 0,
-        ))
-        @variable(model, z[1:3])
-        @variable(model, t)
-        @objective(model, Min, t)
-        @constraint(model, sum((x-z).^2) <= t)
-        @constraint(model, z in cone)
-        optimize!(model)
-        z_star = value.(z)
+        model = MOI.instantiate(SCS.Optimizer, with_bridge_type = Float64)
+        MOI.set(model, MOI.Silent(), true)
+
+        MOI.set(model, MOI.RawOptimizerAttribute("eps_abs"), 1e-10)
+        MOI.set(model, MOI.RawOptimizerAttribute("eps_rel"), 1e-10)
+        MOI.set(model, MOI.RawOptimizerAttribute("max_iters"), 10_000)
+
+        z = MOI.add_variables(model, 3)
+        t = MOI.add_variable(model)
+
+        MOI.set(
+            model,
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            1.0 * t,
+        )
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+
+        MOI.add_constraint(
+            model,
+            MOI.VectorOfVariables(z),
+            cone,
+        )
+
+        MOI.add_constraint(
+            model,
+            sum((1.0 * z[i] - x[i])^2 for i in 1:3) - t,
+            MOI.LessThan(0.0),
+        )
+
+        MOI.optimize!(model)
+
+        z_star = MOI.get.(model, MOI.VariablePrimal(), z)
+
         if !isapprox(px, z_star, atol=tol)
-            error("Exp cone projection failed:\n x = $x\nMOD: $px\nJuMP: $z_star
+            error("Exp cone projection failed:\n x = $x\nMOD: $px\nMOI-SCS: $z_star
                    norm: $(norm(px - z_star))")
             return false
        end
@@ -131,7 +153,7 @@ end
     end
 
     Random.seed!(0)
-    tol = 1e-5
+    tol = 1e-4
     case_p = zeros(4)
     case_d = zeros(4)
     exponents = [10, 20]
@@ -176,15 +198,39 @@ end
 
     function _test_proj_pow_cone_help(x, α, tol; dual=false)
         cone = dual ? MOI.DualPowerCone(α) : MOI.PowerCone(α)
-        model = Model(Hypatia.Optimizer)
+        model = MOI.instantiate(Hypatia.Optimizer, with_bridge_type = Float64)
+        # model = MOI.instantiate(SCS.Optimizer, with_bridge_type = Float64)
         MOI.set(model, MOI.Silent(), true)
-        @variable(model, z[1:3])
-        @variable(model, t)
-        @objective(model, Min, t)
-        @constraint(model, sum((x-z).^2) <= t)
-        @constraint(model, z in cone)
-        optimize!(model)
-        z_star = value.(z)
+
+        # MOI.set(model, MOI.RawOptimizerAttribute("eps_abs"), 1e-10)
+        # MOI.set(model, MOI.RawOptimizerAttribute("eps_rel"), 1e-10)
+        # MOI.set(model, MOI.RawOptimizerAttribute("max_iters"), 10_000)
+
+        z = MOI.add_variables(model, 3)
+        t = MOI.add_variable(model)
+
+        MOI.set(
+            model,
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            1.0 * t,
+        )
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+
+        MOI.add_constraint(
+            model,
+            MOI.VectorOfVariables(z),
+            cone,
+        )
+
+        MOI.add_constraint(
+            model,
+            sum((1.0 * z[i] - x[i])^2 for i in 1:3) - t,
+            MOI.LessThan(0.0),
+        )
+
+        MOI.optimize!(model)
+
+        z_star = MOI.get.(model, MOI.VariablePrimal(), z)
         px = MOD.projection_on_set(DD, x, cone)
         if !isapprox(px, z_star, atol=tol)
             error("x = $x\nα = $α\nnorm = $(norm(px - z_star))\npx=$px\ntrue=$z_star")

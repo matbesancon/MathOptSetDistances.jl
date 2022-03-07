@@ -165,7 +165,7 @@ by Neal Parikh and Stephen Boyd.
 * [Projection, presolve in MOSEK: exponential, and power cones]
 (https://docs.mosek.com/slides/2018/ismp2018/ismp-friberg.pdf) by Henrik Friberg
 * [Projection onto the exponential cone: a univariate root-finding problem]
-(https://docs.mosek.com/whitepapers/expcone-proj.pdf) by Henrik Friberg
+(https://docs.mosek.com/whitepapers/expcone-proj.pdf) by Henrik Friberg 2021
 """
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone; tol=1e-8) where {T}
     _check_dimension(v, s)
@@ -198,8 +198,56 @@ function _in_exp_cone(v::AbstractVector{T}; dual=false, tol=1e-8) where {T}
     end
 end
 
+function _exp_cone_heuristic_projection_grad(v::AbstractVector{T}; tol=1e-8) where {T}
+    # Try Heuristic solutions [Friberg 2021, Lemma 5.1]
+    # (careful with ordering of cone)
+    # vp = proj onto primal cone, vd = proj onto polar cone
+    vp = SVector{3,T}(min(v[1], 0), zero(T), max(v[3], 0))
+    vd = SVector{3,T}(zero(T), min(v[2], 0), min(v[3], 0))
+    mat_1 = true
+    if v[2] > 0
+        zp = max(v[3], v[2]*exp(v[1]/v[2]))
+        if zp - v[3] < norm(vp - v)
+            vp = SVector{3,T}(v[1], v[2], zp)
+            mat_1 = false
+        end
+    end
+    mat = if mat_1
+        @SMatrix(T[
+            (v[1] <= 0) 0 0
+            0           0 0
+            0           0 (v[3] >= 0)
+        ])
+    elseif vp[3] == v[3]
+        SMatrix{3,3,T}(I)
+    else
+        # (v[1], v[2], v[2]*exp(v[1]/v[2]))
+        @SMatrix(T[
+            1               0                            0
+            0               1                            0
+            exp(v[1]/v[2])  exp(v[1]/v[2])*(1-v[1]/v[2]) 0
+        ])
+    end
+    if v[1] > 0
+        zd = min(v[3], -v[1]*exp(v[2]/v[1] - 1))
+        if v[3] - zd < norm(vd - v)
+            vd = SVector{3,T}(v[1], v[2], zd)
+        end
+    end
+
+    # Check if heuristics above approximately satisfy the optimality conditions
+    # Friberg 2021 eq (6)
+    opt_norm = norm(vp + vd - v)
+    opt_ortho = abs(dot(vp, vd))
+    if norm(v - vp) < tol || norm(v - vd) < tol || (opt_norm < tol && opt_ortho < tol)
+        return true, mat
+    end
+    return false, mat
+end
+
 function _exp_cone_proj_case_4(v::AbstractVector{T}; tol=1e-8) where {T}
     # Try Heuristic solutions [Friberg 2021, Lemma 5.1]
+    # (careful with ordering of cone)
     # vp = proj onto primal cone, vd = proj onto polar cone
     vp = SVector{3,T}(min(v[1], 0), zero(T), max(v[3], 0))
     vd = SVector{3,T}(zero(T), min(v[2], 0), min(v[3], 0))
@@ -217,6 +265,7 @@ function _exp_cone_proj_case_4(v::AbstractVector{T}; tol=1e-8) where {T}
     end
 
     # Check if heuristics above approximately satisfy the optimality conditions
+    # Friberg 2021 eq (6)
     opt_norm = norm(vp + vd - v)
     opt_ortho = abs(dot(vp, vd))
     if norm(v - vp) < tol || norm(v - vd) < tol || (opt_norm < tol && opt_ortho < tol)
@@ -552,6 +601,12 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         ])
     end
 
+    # in case of Friberg heuristic solutions
+    ret, mat_h = _exp_cone_heuristic_projection_grad(v)
+    if ret
+        return mat_h
+    end
+
     z1, z2, z3 = _exp_cone_proj_case_4(v)
     nu = z3 - v[3]
     rs = z1/z2
@@ -570,7 +625,7 @@ end
     projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.DualExponentialCone) where {T}
 
 derivative of projection of vector `v` on the dual exponential cone,
-i.e. `Kexp^* = {(u,v,w) | u < 0, -u*exp(v/u) <= ew } U {(u,v,w)| u == 0, v >= 0, w >= 0}`.
+i.e. `Kexp^* = {(u,v,w) | u < 0, -u*exp(v/u) <= exp(1)*w } U {(u,v,w)| u == 0, v >= 0, w >= 0}`.
 
 References:
 * [Solution Refinement at Regular Points of Conic Problems]
