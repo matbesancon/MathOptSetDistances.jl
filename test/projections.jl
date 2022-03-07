@@ -1,4 +1,4 @@
-using MathOptInterface, SCS
+using MathOptInterface, SCS, Hypatia
 
 @testset "Test projections distance on vector sets" begin
     for n in [1, 10] # vector sizes
@@ -69,7 +69,7 @@ end
     @test output_joint ≈ [output_1; output_2]
 end
 
-@testset "Non-trivial Block projection gradient" begin
+@testset "Non-trivial block projection gradient" begin
     v1 = rand(Float64, 15)
     v2 = rand(Float64, 5)
     c1 = MOI.PositiveSemidefiniteConeTriangle(6)
@@ -112,13 +112,14 @@ end
         end
 
         model = MOI.instantiate(SCS.Optimizer, with_bridge_type = Float64)
-        z = MOI.add_variables(model, 3)
-        t = MOI.add_variable(model)
+        MOI.set(model, MOI.Silent(), true)
 
         MOI.set(model, MOI.RawOptimizerAttribute("eps_abs"), 1e-10)
         MOI.set(model, MOI.RawOptimizerAttribute("eps_rel"), 1e-10)
         MOI.set(model, MOI.RawOptimizerAttribute("max_iters"), 10_000)
-        MOI.set(model, MOI.RawOptimizerAttribute("verbose"), 0)
+
+        z = MOI.add_variables(model, 3)
+        t = MOI.add_variable(model)
 
         MOI.set(
             model,
@@ -176,6 +177,92 @@ end
 
         case_d[det_case_exp_cone(x; dual=true)] += 1
         @test _test_proj_exp_cone_help(x, tol; dual=true)
+    end
+    @test all(case_p .> 0) && all(case_d .> 0)
+end
+
+@testset "Power Cone Projections" begin
+    function det_case_pow_cone(x, α; dual=false)
+        v = dual ? -x : x
+        s = MOI.PowerCone(α)
+        if MOD._in_pow_cone(v, s)
+            return 1
+        elseif MOD._in_pow_cone(v, MOI.dual_set(s))
+            return 2
+        elseif abs(v[3]) <= 1e-8
+            return 3
+        else
+            return 4
+        end
+    end
+
+    function _test_proj_pow_cone_help(x, α, tol; dual=false)
+        cone = dual ? MOI.DualPowerCone(α) : MOI.PowerCone(α)
+        model = MOI.instantiate(Hypatia.Optimizer, with_bridge_type = Float64)
+        # model = MOI.instantiate(SCS.Optimizer, with_bridge_type = Float64)
+        MOI.set(model, MOI.Silent(), true)
+
+        # MOI.set(model, MOI.RawOptimizerAttribute("eps_abs"), 1e-10)
+        # MOI.set(model, MOI.RawOptimizerAttribute("eps_rel"), 1e-10)
+        # MOI.set(model, MOI.RawOptimizerAttribute("max_iters"), 10_000)
+
+        z = MOI.add_variables(model, 3)
+        t = MOI.add_variable(model)
+
+        MOI.set(
+            model,
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            1.0 * t,
+        )
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+
+        MOI.add_constraint(
+            model,
+            MOI.VectorOfVariables(z),
+            cone,
+        )
+
+        MOI.add_constraint(
+            model,
+            sum((1.0 * z[i] - x[i])^2 for i in 1:3) - t,
+            MOI.LessThan(0.0),
+        )
+
+        MOI.optimize!(model)
+
+        z_star = MOI.get.(model, MOI.VariablePrimal(), z)
+        px = MOD.projection_on_set(DD, x, cone)
+        if !isapprox(px, z_star, atol=tol)
+            error("x = $x\nα = $α\nnorm = $(norm(px - z_star))\npx=$px\ntrue=$z_star")
+            return false
+       end
+       if !MOD._in_pow_cone(px, cone, tol=tol)
+           error("Not in power cone\nx = $x\nα = $α\nnorm = $(norm(px - z_star))\npx=$px\ntrue=$z_star")
+           return false
+       end
+       return true
+    end
+
+    Random.seed!(0)
+    n = 3
+    atol = 5e-6
+    case_p = zeros(4)
+    case_d = zeros(4)
+    for _ in 1:100
+        x = randn(3)
+        for α in [rand(0.05:0.05:0.95); 0.5]
+
+            # Need to get some into case 3
+            if rand(1:10) == 1
+                x[3] = 0
+            end
+
+            case_p[det_case_pow_cone(x, α; dual=false)] += 1
+            @test _test_proj_pow_cone_help(x, α, atol; dual=false)
+
+            case_d[det_case_pow_cone(x, α; dual=true)] += 1
+            @test _test_proj_pow_cone_help(x, α, atol; dual=true)
+        end
     end
     @test all(case_p .> 0) && all(case_d .> 0)
 end
