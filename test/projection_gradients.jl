@@ -302,11 +302,12 @@ end
         rng = Random.MersenneTwister(0)
         # review fails on power cone gradient
         # Random.seed!(0)
-        tol = 1e-5
+        tol = 1e-4
         for ii in 1:100
             # v = 5*randn(3)
             v = 5*randn(rng, 3)
-            for α in [0.5; rand(0.05:0.05:0.95)]
+            # for α in [0.5; rand(0.05:0.05:0.95)]
+            for α in [0.5; rand(rng, 0.05:0.05:0.95)]
                 if ii % 10 == 1
                     v[3] = 0.0
                 end
