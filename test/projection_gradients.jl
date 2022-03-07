@@ -301,13 +301,13 @@ end
 
         rng = Random.MersenneTwister(0)
         # review fails on power cone gradient
-        # Random.seed!(0)
+        Random.seed!(0)
         tol = 1e-4
         for ii in 1:100
-            # v = 5*randn(3)
-            v = 5*randn(rng, 3)
-            # for α in [0.5; rand(0.05:0.05:0.95)]
-            for α in [0.5; rand(rng, 0.05:0.05:0.95)]
+            v = 5*randn(3)
+            # v = 5*randn(rng, 3)
+            for α in [0.5; rand(0.05:0.05:0.95)]
+            # for α in [0.5; rand(rng, 0.05:0.05:0.95)]
                 if ii % 10 == 1
                     v[3] = 0.0
                 end
@@ -320,10 +320,31 @@ end
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm3 = FiniteDifferences.jacobian(cfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                    ##
+                    # References:
+                    # * [Differential properties of Euclidean projection onto power cone]
+                    # (https://link.springer.com/article/10.1007/s00186-015-0514-0), Theorem 3.1
+                    # eq (11)
+                    x = [v[1]; v[2]]
+                    αs = [s.exponent; 1-s.exponent]
+                    d = if sum(αs[x .> 0]) > sum(αs[x .< 0])
+                        1
+                    elseif sum(αs[x .> 0]) < sum(αs[x .< 0])
+                        0
+                    else
+                        NaN
+                    end
+                    if v[3] == 0 && !isnan(d)
+                        grad_fdm1[end] = d
+                        grad_fdm2[end] = d
+                        grad_fdm3[end] = d
+                    end
+                    ##
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                     @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol)
                     if !(≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol))
-                        error("v=$v\ndΠ = $dΠ\ncase=$case\nFD1=$grad_fdm1\nFD2=$grad_fdm2\nFD3=$grad_fdm3")
+                        @show MathOptSetDistances._pow_cone_∇proj_case_3(v, s)
+                        error("α=$α\nv=$v\ndΠ = $dΠ\ncase=$case\nFD1=$grad_fdm1\nFD2=$grad_fdm2\nFD3=$grad_fdm3")
                     end
                 end
 
@@ -334,6 +355,26 @@ end
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
                     grad_fdm3 = FiniteDifferences.jacobian(cfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, sd), v)[1]'
+                    ##
+                    # References:
+                    # * [Differential properties of Euclidean projection onto power cone]
+                    # (https://link.springer.com/article/10.1007/s00186-015-0514-0), Theorem 3.1
+                    # eq (11)
+                    x = [v[1]; v[2]]
+                    αs = [s.exponent; 1-s.exponent]
+                    d = if sum(αs[x .> 0]) > sum(αs[x .< 0])
+                        1
+                    elseif sum(αs[x .> 0]) < sum(αs[x .< 0])
+                        0
+                    else
+                        NaN
+                    end
+                    if v[3] == 0 && !isnan(d)
+                        grad_fdm1[end] = d
+                        grad_fdm2[end] = d
+                        grad_fdm3[end] = d
+                    end
+                    ##
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                     @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol)
                     if !(≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol))

@@ -657,7 +657,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         # if in polar cone Ko = -K*
         return zeros(T, 3, 3)
     end
-    if abs(v[3]) <= 1e-8
+    if abs(v[3]) <= 1e-10
         return _pow_cone_∇proj_case_3(v, s)
     end
 
@@ -693,6 +693,12 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     return J
 end
 
+"""
+References:
+* [Differential properties of Euclidean projection onto power cone]
+(https://link.springer.com/article/10.1007/s00186-015-0514-0), Theorem 3.1
+eq (11)
+"""
 function _pow_cone_∇proj_case_3(v::AbstractVector{T}, s::MOI.PowerCone) where {T}
     x = [v[1]; v[2]]
     αs = [s.exponent; 1-s.exponent]
