@@ -744,11 +744,11 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set
 end
 
 """
-    projection_on_set(::DefaultDistance, V::AbstractVector{T}, s::NormBallNuclear{T}) where {T}
+    projection_on_set(::DefaultDistance, V::AbstractVector{T}, s::NormBallNuclear{R}) where {R}
 
 projection of matrix `V` onto nuclear norm ball
 """
-function projection_on_set(d::DefaultDistance, V::AbstractMatrix{T}, s::NormNuclearBall{T}) where {T}
+function projection_on_set(d::DefaultDistance, V::AbstractMatrix{T}, s::NormNuclearBall{R}) where {R}
     U, sing_val, Vt = LinearAlgebra.svd(V)
     if (sum(sing_val) <= s.radius)
         return V
@@ -758,7 +758,7 @@ function projection_on_set(d::DefaultDistance, V::AbstractMatrix{T}, s::NormNucl
 end
 
 # initial implementation in FrankWolfe.jl
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::ProbabilitySimplex{T}) where {T}
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::ProbabilitySimplex{R}) where {T, R}
     _check_dimension(v, s)
     # TODO: allocating a ton, should implement the recent non-sorting alg
     n = length(v)
@@ -776,7 +776,7 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::Probabili
     return w
 end
 
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::StandardSimplex{T}) where {T}
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::StandardSimplex{R}) where {T, R}
     _check_dimension(v, s)
     n = length(v)
     if sum(v) ≤ s.radius && all(>=(0), v)
@@ -798,14 +798,14 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::StandardS
     return x
 end
 
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormInfinityBall{T}) where {T}
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormInfinityBall{T, R}) where {T, R}
     if norm(v, Inf) <= s.radius
         return v
     end
     return clamp.(v, -s.radius, s.radius)
 end
 
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormTwoBall{T}) where {T}
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormTwoBall{R}) where {T, R}
     nv = norm(v)
     if nv <= s.radius
         return v
