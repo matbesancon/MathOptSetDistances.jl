@@ -816,6 +816,7 @@ end
 # inspired by https://github.com/MPF-Optimization-Laboratory/ProjSplx.jl
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormOneBall{T}) where {T}
     n = length(v)
+    τ = s.radius
     if norm(v, 1) ≤ τ
         return v
     end
@@ -823,7 +824,7 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormOneBa
     # simplex projection
     bget = false
     s_indices = sortperm(u, rev=true)
-    tsum = zero(τ)
+    tsum = zero(T)
 
     @inbounds for i in 1:n-1
         tsum += u[s_indices[i]]
