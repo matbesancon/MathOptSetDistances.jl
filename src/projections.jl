@@ -744,11 +744,11 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set
 end
 
 """
-    projection_on_set(::DefaultDistance, V::AbstractVector{T}, s::NormBallNuclear{R}) where {R}
+    projection_on_set(::DefaultDistance, V::AbstractVector{T}, s::NormBallNuclear{R}) where {T, R}
 
 projection of matrix `V` onto nuclear norm ball
 """
-function projection_on_set(d::DefaultDistance, V::AbstractMatrix{T}, s::NormNuclearBall{R}) where {R}
+function projection_on_set(d::DefaultDistance, V::AbstractMatrix{T}, s::NormNuclearBall{R}) where {T, R}
     U, sing_val, Vt = LinearAlgebra.svd(V)
     if (sum(sing_val) <= s.radius)
         return V
