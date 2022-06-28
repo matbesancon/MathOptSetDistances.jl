@@ -24,7 +24,7 @@ MOI.dimension(s::Union{StandardSimplex, ProbabilitySimplex}) = s.dimension
 Represents a norm ball built from the corresponding cone with a fixed radius.
 """
 struct NormBallFromCone{T, S <: MOI.AbstractSet} <: MOI.AbstractVectorSet
-    radius::Int
+    radius::T
     cone::S
 end
 
