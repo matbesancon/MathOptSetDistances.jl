@@ -814,13 +814,14 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormTwoBa
 end
 
 # inspired by https://github.com/MPF-Optimization-Laboratory/ProjSplx.jl
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormOneBall{T}) where {T}
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormOneBall{R}) where {T, R}
+    TP = promote_type(T, R)
     n = length(v)
     τ = s.radius
     if norm(v, 1) ≤ τ
         return v
     end
-    u = abs.(v)
+    u = TP.(abs.(v))
     # simplex projection
     bget = false
     s_indices = sortperm(u, rev=true)
