@@ -497,6 +497,9 @@ end
     projection_gradient_on_set(::NormedEpigraphDistance{p}, v::AbstractVector{T}, ::MOI.SecondOrderCone) where {T}
 
 derivative of projection of vector `v` on second order cone i.e. K = {(t, x) ∈ R+ × Rn |  ||x|| ≤ t }
+
+References:
+* [Proximal Algorithms](https://doi.org/10.1561/2400000003), Section 6.3.2, p. 189
 """
 function projection_gradient_on_set(::NormedEpigraphDistance{p}, v::AbstractVector{T}, ::MOI.SecondOrderCone) where {p,T}
     n = length(v)
@@ -524,6 +527,9 @@ end
     projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, cone::MOI.PositiveSemidefiniteConeTriangle) where {T}
 
 derivative of projection of vector `v` on positive semidefinite cone i.e. K = S^n⨥
+
+References:
+* [Proximal Algorithms](https://doi.org/10.1561/2400000003), Section 6.3.3, p. 189
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PositiveSemidefiniteConeTriangle) where {T}
     n = length(v)
