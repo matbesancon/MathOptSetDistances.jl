@@ -269,7 +269,7 @@ function distance_to_set(d::DefaultDistance, v::AbstractVector{T}, s::MOI.Indica
         return zero(T)
     end
     return LinearAlgebra.norm(
-        (distance_to_set(d, z, MOI.ZeroOne()), distance_to_set(v[2], s.set))
+        (distance_to_set(d, z, MOI.ZeroOne()), distance_to_set(d, v[2], s.set))
     )
 end
 
