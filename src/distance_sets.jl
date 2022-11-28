@@ -261,14 +261,14 @@ function distance_to_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.SOS1) wh
 end
 
 # takes in input [z, f(x)]
-function distance_to_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Indicator{A}) where {A, T <: Real}
+function distance_to_set(d::DefaultDistance, v::AbstractVector{T}, s::MOI.Indicator{A}) where {A, T <: Real}
     _check_dimension(v, s)
     z = v[1]
     # inactive constraint
     if A === MOI.ACTIVATE_ON_ONE && isapprox(z, 0) || A === MOI.ACTIVATE_ON_ZERO && isapprox(z, 1)
-        return zeros(T, 2)
+        return zero(T)
     end
-    return LinearAlgebra.norm2(
+    return LinearAlgebra.norm(
         (distance_to_set(d, z, MOI.ZeroOne()), distance_to_set(v[2], s.set))
     )
 end
