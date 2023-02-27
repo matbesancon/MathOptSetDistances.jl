@@ -804,7 +804,7 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::StandardS
     return x
 end
 
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormInfinityBall{T}) where {T, R}
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::NormInfinityBall{R}) where {T, R}
     if norm(v, Inf) <= s.radius
         return v
     end
