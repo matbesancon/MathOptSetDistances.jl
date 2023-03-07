@@ -75,19 +75,44 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, cone::MOI.Se
     return projection_on_set(NormedEpigraphDistance{2}(), v, cone)
 end
 
-function _second_order_cone_rotation(n, ::Type{T}) where T
-    R = Matrix{T}(LinearAlgebra.I, n, n)
-    r = inv(sqrt(T(2)))
-    R[1, 1] = r
-    R[1, 2] = r
-    R[2, 1] = r
-    R[2, 2] = -r
+"""
+    struct SecondOrderConeRotation end
+
+Linear transformation that is a symmetric involution representing the rotation
+between the `MOI.SecondOrderCone` and the `MOI.RotatedSecondOrderCone`.
+"""
+struct SecondOrderConeRotation end
+
+function _rotate(t::T, u::T) where {T}
+    s = inv(sqrt(T(2)))
+    return s * (t + u), s * (t - u)
+end
+
+function Base.:*(::SecondOrderConeRotation, v::AbstractVector{T}) where {T}
+    r = copy(v)
+    r[1], r[2] = _rotate(r[1], r[2])
+    return r
+end
+
+function Base.:*(::SecondOrderConeRotation, M::AbstractMatrix{T}) where {T}
+    R = copy(M)
+    for col in axes(R, 2)
+        R[1, col], R[2, col] = _rotate(R[1, col], R[2, col])
+    end
+    return R
+end
+
+function Base.:*(M::AbstractMatrix{T}, ::SecondOrderConeRotation) where {T}
+    R = copy(M)
+    for row in axes(R, 1)
+        R[row, 1], R[row, 2] = _rotate(R[row, 1], R[row, 2])
+    end
     return R
 end
 
 function projection_on_set(d::NormedEpigraphDistance, v::AbstractVector{T}, ::MOI.RotatedSecondOrderCone) where {T}
     n = length(v)
-    R = _second_order_cone_rotation(n, T)
+    R = SecondOrderConeRotation()
     return R * projection_on_set(d, R * v, MOI.SecondOrderCone(n))
 end
 
@@ -545,7 +570,7 @@ end
 
 function projection_gradient_on_set(d::NormedEpigraphDistance, v::AbstractVector{T}, ::MOI.RotatedSecondOrderCone) where {T}
     n = length(v)
-    R = _second_order_cone_rotation(n, T)
+    R = SecondOrderConeRotation()
     P = projection_gradient_on_set(d, R * v, MOI.SecondOrderCone(n))
     return R * P * R
 end
