@@ -150,6 +150,45 @@ end
                 end
             end
         end
+        @testset "RSOC" begin
+            s = MOI.RotatedSecondOrderCone(n+2)
+            for _ in 1:Ntrials
+                x = safe_randn(n)
+                @testset "SOC interior and negative bound" begin
+                    t = LinearAlgebra.norm2(x) + 2 * rand()
+                    u = 1/2
+                    for (t, u) in [(t^2, 1/2), (1/2, t^2), (t, t/2), (t/2, t)]
+                        for u in [u, -u]
+                            for v in [t, -t]
+                                v = vcat(t, u, x)
+                                dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                                grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                                grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                                @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                                @test dΠ ≈ grad_fdm1 || dΠ ≈ grad_fdm2
+                            end
+                        end
+                    end
+                end
+                @testset "Out of cone point" begin
+                    for tscale in (0.1, 0.5, 0.9)
+                        t = tscale * LinearAlgebra.norm2(x)
+                        for (t, u) in [(t^2, 1/2), (1/2, t^2), (t, t/2), (t/2, t)]
+                            for u in [u, -u]
+                                for v in [t, -t]
+                                    v = vcat(t, x)
+                                    dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+                                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                                    @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                                    @test dΠ ≈ grad_fdm1 || dΠ ≈ grad_fdm2
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end
     @testset "Indefinite matrix" begin
         s = MOI.PositiveSemidefiniteConeTriangle(2)
