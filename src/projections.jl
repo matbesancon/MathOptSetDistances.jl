@@ -123,14 +123,25 @@ end
 """
     projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PositiveSemidefiniteConeTriangle) where {T}
 
-projection of vector `v` on positive semidefinite cone i.e. K = S^n⨥
+Projection of vector `v` on positive semidefinite cone i.e. `K = S^n⨥`
 """
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PositiveSemidefiniteConeTriangle) where {T}
-    dim = isqrt(2*length(v))
-    X = unvec_symm(v, dim)
+function projection_on_set(::DefaultDistance, v::AbstractVector{T}, set::MOI.PositiveSemidefiniteConeTriangle) where {T}
+    X = unvec_symm(v, set.side_dimension)
     λ, U = LinearAlgebra.eigen(X)
     D = LinearAlgebra.Diagonal(max.(λ, 0))
     return vec_symm(U * D * U')
+end
+
+"""
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ScaledPositiveSemidefiniteConeTriangle) where {T}
+
+Projection of vector `v` on positive semidefinite cone i.e. `K = S^n⨥`
+"""
+function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, set::MOI.ScaledPositiveSemidefiniteConeTriangle) where {T}
+    scale = MOI.Utilities.symmetric_matrix_scaling_vector(T, length(v))
+    D = LinearAlgebra.Diagonal(scale)
+    psd = MOI.PositiveSemidefiniteConeTriangle(set.side_dimension)
+    return D * projection_on_set(d, D \ v, psd)
 end
 
 """
@@ -161,7 +172,7 @@ dot(unvec_symm(x, dim), unvec_symm(y, dim)) != dot(x, y).
 
 [1] Boyd, S. and Vandenberghe, L.. *Convex optimization*. Cambridge university press, 2004.
 """
-function unvec_symm(x, dim=isqrt(2length(x)))
+function unvec_symm(x, dim)
     X = zeros(eltype(x), dim, dim)
     idx = 1
     for i in 1:dim
