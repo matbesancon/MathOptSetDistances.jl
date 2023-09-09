@@ -133,15 +133,14 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, set::MOI.Pos
 end
 
 """
-    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ScaledPositiveSemidefiniteConeTriangle) where {T}
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, set::MOI.Scaled) where {T}
 
-Projection of vector `v` on positive semidefinite cone i.e. `K = S^n⨥`
+Projection of vector `v` on the scaled version of `set.set`.
 """
-function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, set::MOI.ScaledPositiveSemidefiniteConeTriangle) where {T}
-    scale = MOI.Utilities.symmetric_matrix_scaling_vector(T, length(v))
+function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, set::MOI.Scaled) where {T}
+    scale = MOI.Utilities.SetDotScalingVector{T}(set.set)
     D = LinearAlgebra.Diagonal(scale)
-    psd = MOI.PositiveSemidefiniteConeTriangle(set.side_dimension)
-    return D * projection_on_set(d, D \ v, psd)
+    return D * projection_on_set(d, D \ v, set.set)
 end
 
 """
