@@ -134,7 +134,7 @@ end
             cone,
         )
 
-        MOI.add_constraint(
+        MOI.Utilities.normalize_and_add_constraint(
             model,
             sum((1.0 * z[i] - x[i])^2 for i in 1:3) - t,
             MOI.LessThan(0.0),
@@ -222,7 +222,7 @@ end
             cone,
         )
 
-        MOI.add_constraint(
+        MOI.Utilities.normalize_and_add_constraint(
             model,
             sum((1.0 * z[i] - x[i])^2 for i in 1:3) - t,
             MOI.LessThan(0.0),
