@@ -126,7 +126,7 @@ end
 Projection of vector `v` on positive semidefinite cone i.e. `K = S^n⨥`
 """
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, set::MOI.PositiveSemidefiniteConeTriangle) where {T}
-    X = unvec_symm(v, set.side_dimension)
+    X = reshape(v, set)
     λ, U = LinearAlgebra.eigen(X)
     D = LinearAlgebra.Diagonal(max.(λ, 0))
     return vec_symm(U * D * U')
@@ -144,7 +144,7 @@ function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, set::MOI.Sc
 end
 
 """
-    unvec_symm(x, dim)
+    reshape(x, set::MOI.AbstractSymmetricMatrixSetTriangle)
 
 Returns a dim-by-dim symmetric matrix corresponding to `x`.
 
@@ -164,14 +164,14 @@ the sum of the pairwise product of the diagonal entries plus twice the sum of
 the pairwise product of the upper diagonal entries; see [p. 634, 1].
 Therefore, this transformation breaks inner products:
 ```
-dot(unvec_symm(x, dim), unvec_symm(y, dim)) != dot(x, y).
+dot(reshape(x, dim), reshape(y, dim)) != dot(x, y).
 ```
 
 ### References
 
 [1] Boyd, S. and Vandenberghe, L.. *Convex optimization*. Cambridge university press, 2004.
 """
-function unvec_symm(x, dim)
+function reshape(x, dim::MOI.AbstractSymmetricMatrixSetTriangle)
     X = zeros(eltype(x), dim, dim)
     idx = 1
     for i in 1:dim
@@ -598,10 +598,9 @@ derivative of projection of vector `v` on positive semidefinite cone i.e. K = S^
 References:
 * [Proximal Algorithms](https://doi.org/10.1561/2400000003), Section 6.3.3, p. 189
 """
-function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PositiveSemidefiniteConeTriangle) where {T}
+function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set::MOI.PositiveSemidefiniteConeTriangle) where {T}
     n = length(v)
-    dim = isqrt(2n)
-    X = unvec_symm(v, dim)
+    X = reshape(v, set)
     λ, U = LinearAlgebra.eigen(X)
     Tp = promote_type(T, Float64)
 
@@ -616,12 +615,13 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::M
     y = zeros(Tp, n)
     D = zeros(Tp, n, n)
 
+    dim = MOI.side_dimension(set)
     for idx in 1:n
         # set eigenvector
         y[idx] = 1
 
         # defining matrix B
-        X̃ = unvec_symm(y, dim)
+        X̃ = reshape(y, set)
         B = U' * X̃ * U
 
         for i in 1:size(B)[1] # do the hadamard product
