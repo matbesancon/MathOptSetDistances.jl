@@ -213,7 +213,7 @@ end
             @test A ≈ Q * Λ * Qi
             v = MOD.vec_symm(A)
             Πv = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
-            Π = MOD.unvec_symm(Πv, 2)
+            Π = MOD.reshape_vector(Πv, MOI.PositiveSemidefiniteConeTriangle(2))
             @test Π ≈ Q * Λp * Qi
             DΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
             # directional derivative

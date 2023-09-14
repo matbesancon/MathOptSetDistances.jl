@@ -105,9 +105,8 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
     return (vproj, projection_on_set_pullback)
 end
 
-function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, ::MOI.PositiveSemidefiniteConeTriangle) where {T}
-    dim = isqrt(2 * length(v))
-    X = unvec_symm(v, dim)
+function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, set::MOI.PositiveSemidefiniteConeTriangle) where {T}
+    X = reshape_vector(v, set)
     (λ, U) = LinearAlgebra.eigen(X)
     λmin, λmax = extrema(λ)
     if λmin >= 0
@@ -121,6 +120,7 @@ function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::De
     vproj = vec_symm(U * Diagonal(λp) * U')
     k = count(λi < 1e-4 for λi in λ)
     # TODO avoid full matrix materialize
+    dim = MOI.side_dimension(set)
     B = zeros(eltype(λ), dim, dim)
     for i in 1:dim, j in 1:dim
         if i > k && j > k
@@ -131,7 +131,7 @@ function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::De
             B[i,j] = λp[j] / (λp[j] - min(λ[i], 0))
         end
     end
-    M = U * (B .* (U' * unvec_symm(Δv, dim) * U)) * U'
+    M = U * (B .* (U' * reshape_vector(Δv, set) * U)) * U'
     Δvproj = vec_symm(M)
     return (vproj, Δvproj)
 end

@@ -185,7 +185,7 @@ end
             Λp = Diagonal([0, f])
             v .= MOD.vec_symm(A)
             vproj = MOD.projection_on_set(DD, v, s)
-            Π .= MOD.unvec_symm(vproj, 2)
+            Π .= MOD.reshape_vector(vproj, MOI.PositiveSemidefiniteConeTriangle(2))
             @test Π ≈ Q * Λp * Qi
             DΠ .= MOD.projection_gradient_on_set(DD, v, s)
             for _ in 1:20
