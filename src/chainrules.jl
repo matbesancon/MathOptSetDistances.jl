@@ -106,7 +106,7 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
 end
 
 function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, set::MOI.PositiveSemidefiniteConeTriangle) where {T}
-    X = reshape(v, set)
+    X = reshape_vector(v, set)
     (λ, U) = LinearAlgebra.eigen(X)
     λmin, λmax = extrema(λ)
     if λmin >= 0
@@ -131,7 +131,7 @@ function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::De
             B[i,j] = λp[j] / (λp[j] - min(λ[i], 0))
         end
     end
-    M = U * (B .* (U' * reshape(Δv, set) * U)) * U'
+    M = U * (B .* (U' * reshape_vector(Δv, set) * U)) * U'
     Δvproj = vec_symm(M)
     return (vproj, Δvproj)
 end

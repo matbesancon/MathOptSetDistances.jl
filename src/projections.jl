@@ -126,7 +126,7 @@ end
 Projection of vector `v` on positive semidefinite cone i.e. `K = S^n⨥`
 """
 function projection_on_set(::DefaultDistance, v::AbstractVector{T}, set::MOI.PositiveSemidefiniteConeTriangle) where {T}
-    X = reshape(v, set)
+    X = reshape_vector(v, set)
     λ, U = LinearAlgebra.eigen(X)
     D = LinearAlgebra.Diagonal(max.(λ, 0))
     return vec_symm(U * D * U')
@@ -144,7 +144,7 @@ function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, set::MOI.Sc
 end
 
 """
-    reshape(x, set::MOI.AbstractSymmetricMatrixSetTriangle)
+    reshape_vector(x, set::MOI.AbstractSymmetricMatrixSetTriangle)
 
 Returns a dim-by-dim symmetric matrix corresponding to `x`.
 
@@ -164,14 +164,15 @@ the sum of the pairwise product of the diagonal entries plus twice the sum of
 the pairwise product of the upper diagonal entries; see [p. 634, 1].
 Therefore, this transformation breaks inner products:
 ```
-dot(reshape(x, dim), reshape(y, dim)) != dot(x, y).
+dot(reshape_vector(x, dim), reshape_vector(y, dim)) != dot(x, y).
 ```
 
 ### References
 
 [1] Boyd, S. and Vandenberghe, L.. *Convex optimization*. Cambridge university press, 2004.
 """
-function reshape(x, dim::MOI.AbstractSymmetricMatrixSetTriangle)
+function reshape_vector(x, set::MOI.AbstractSymmetricMatrixSetTriangle)
+    dim = MOI.side_dimension(set)
     X = zeros(eltype(x), dim, dim)
     idx = 1
     for i in 1:dim
@@ -600,7 +601,7 @@ References:
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set::MOI.PositiveSemidefiniteConeTriangle) where {T}
     n = length(v)
-    X = reshape(v, set)
+    X = reshape_vector(v, set)
     λ, U = LinearAlgebra.eigen(X)
     Tp = promote_type(T, Float64)
 
@@ -621,7 +622,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set
         y[idx] = 1
 
         # defining matrix B
-        X̃ = reshape(y, set)
+        X̃ = reshape_vector(y, set)
         B = U' * X̃ * U
 
         for i in 1:size(B)[1] # do the hadamard product
