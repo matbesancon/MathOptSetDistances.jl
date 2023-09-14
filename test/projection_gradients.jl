@@ -1,6 +1,5 @@
 using Test
-using MathOptInterface
-const MOI = MathOptInterface
+import MathOptInterface as MOI
 
 using MathOptSetDistances
 const MOD = MathOptSetDistances
@@ -12,8 +11,7 @@ const bfdm = FiniteDifferences.backward_fdm(5, 1)
 const ffdm = FiniteDifferences.forward_fdm(5, 1)
 const cfdm = FiniteDifferences.central_fdm(5,1)
 
-import ChainRulesCore
-const CRC = ChainRulesCore
+import ChainRulesCore as CRC
 import FillArrays
 
 # type piracy because of https://github.com/JuliaDiff/FiniteDifferences.jl/issues/177

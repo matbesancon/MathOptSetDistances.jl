@@ -1,12 +1,10 @@
 module MathOptSetDistances
 
-import MathOptInterface
-const MOI = MathOptInterface
+import MathOptInterface as MOI
 using BlockDiagonals: BlockDiagonal
 import FillArrays
 using LinearAlgebra
-import ChainRulesCore
-const CRC = ChainRulesCore
+import ChainRulesCore as CRC
 
 using StaticArrays: @SMatrix, SMatrix, @SVector, SVector
 
