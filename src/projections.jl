@@ -146,7 +146,8 @@ end
 """
     reshape_vector(x, set::MOI.AbstractSymmetricMatrixSetTriangle)
 
-Returns a dim-by-dim symmetric matrix corresponding to `x`.
+Returns a `dim`-by-`dim` symmetric matrix corresponding to `x` where
+`dim` is `MOI.side_dimension(set)`
 
 `x` is a vector of length dim*(dim + 1)/2, corresponding to a symmetric matrix
 ```
@@ -181,7 +182,7 @@ function reshape_vector(x, set::MOI.AbstractSymmetricMatrixSetTriangle)
             idx += 1
         end
     end
-    return X
+    return LinearAlgebra.Symmetric(X)
 end
 
 """
