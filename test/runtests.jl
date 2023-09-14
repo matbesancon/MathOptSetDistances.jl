@@ -2,7 +2,7 @@
 using Test
 
 import MathOptSetDistances as MOD
-const MOI = MathOptSetDistances.MOI
+const MOI = MOD.MOI
 const DD = MOD.DefaultDistance()
 
 using LinearAlgebra

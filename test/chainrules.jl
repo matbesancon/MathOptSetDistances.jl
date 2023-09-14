@@ -3,7 +3,7 @@ const CRC = ChainRulesCore
 using ChainRulesTestUtils
 
 import MathOptSetDistances as MOD
-const MOI = MathOptSetDistances.MOI
+const MOI = MOD.MOI
 using FiniteDifferences
 using Test
 using Random

@@ -380,7 +380,7 @@ end
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                     @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol)
                     if !(≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol))
-                        @show MathOptSetDistances._pow_cone_∇proj_case_3(v, s)
+                        @show MOD._pow_cone_∇proj_case_3(v, s)
                         error("α=$α\nv=$v\ndΠ = $dΠ\ncase=$case\nFD1=$grad_fdm1\nFD2=$grad_fdm2\nFD3=$grad_fdm3")
                     end
                 end
