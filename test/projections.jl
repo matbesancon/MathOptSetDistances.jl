@@ -72,7 +72,7 @@ end
 @testset "Non-trivial block projection gradient" begin
     v1 = rand(Float64, 15)
     v2 = rand(Float64, 5)
-    c1 = MOI.PositiveSemidefiniteConeTriangle(6)
+    c1 = MOI.PositiveSemidefiniteConeTriangle(5)
     c2 = MOI.SecondOrderCone(5)
 
     output_1 = MOD.projection_gradient_on_set(DD, v1, c1)
