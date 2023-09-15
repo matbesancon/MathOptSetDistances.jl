@@ -1,90 +1,90 @@
 
-function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::T, s::MOI.EqualTo) where {T}
+function CRC.rrule(::typeof(projection_on_set), d::DefaultDistance, v::T, s::MOI.EqualTo) where {T}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
-        return (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), ChainRulesCore.ZeroTangent(), ChainRulesCore.Tangent{typeof(s)}(value=Δvproj))
+        return (CRC.NoTangent(), CRC.NoTangent(), CRC.ZeroTangent(), CRC.Tangent{typeof(s)}(value=Δvproj))
     end
     return (vproj, pullback)
 end
 
-function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::T, s::MOI.LessThan) where {T}
+function CRC.rrule(::typeof(projection_on_set), d::DefaultDistance, v::T, s::MOI.LessThan) where {T}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
-        Δvproj = ChainRulesCore.unthunk(Δvproj)
+        Δvproj = CRC.unthunk(Δvproj)
         if vproj == v # if exactly equal, then constraint inactive
-            return (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), Δvproj, ChainRulesCore.Tangent{typeof(s)}(upper=zero(Δvproj)))
+            return (CRC.NoTangent(), CRC.NoTangent(), Δvproj, CRC.Tangent{typeof(s)}(upper=zero(Δvproj)))
         end
-        return (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), zero(Δvproj), ChainRulesCore.Tangent{typeof(s)}(upper=Δvproj))
+        return (CRC.NoTangent(), CRC.NoTangent(), zero(Δvproj), CRC.Tangent{typeof(s)}(upper=Δvproj))
     end
     return (vproj, pullback)
 end
 
-function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::T, s::MOI.GreaterThan) where {T}
+function CRC.rrule(::typeof(projection_on_set), d::DefaultDistance, v::T, s::MOI.GreaterThan) where {T}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
-        Δvproj = ChainRulesCore.unthunk(Δvproj)
+        Δvproj = CRC.unthunk(Δvproj)
         if vproj == v # if exactly equal, then constraint inactive
-            return (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), Δvproj, ChainRulesCore.Tangent{typeof(s)}(lower=zero(Δvproj)))
+            return (CRC.NoTangent(), CRC.NoTangent(), Δvproj, CRC.Tangent{typeof(s)}(lower=zero(Δvproj)))
         end
-        return (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), zero(Δvproj), ChainRulesCore.Tangent{typeof(s)}(lower=Δvproj))
+        return (CRC.NoTangent(), CRC.NoTangent(), zero(Δvproj), CRC.Tangent{typeof(s)}(lower=Δvproj))
     end
     return (vproj, pullback)
 end
 
-function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.Reals) where {T}
+function CRC.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.Reals) where {T}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
-        return (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), Δvproj, ChainRulesCore.NoTangent())
+        return (CRC.NoTangent(), CRC.NoTangent(), Δvproj, CRC.NoTangent())
     end
     return (vproj, pullback)
 end
 
-function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.Zeros) where {T}
+function CRC.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.Zeros) where {T}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
-        return (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), FillArrays.Zeros(length(v)), ChainRulesCore.NoTangent())
+        return (CRC.NoTangent(), CRC.NoTangent(), FillArrays.Zeros(length(v)), CRC.NoTangent())
     end
     return (vproj, pullback)
 end
 
-function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.Nonnegatives) where {T}
+function CRC.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.Nonnegatives) where {T}
     vproj = projection_on_set(d, v, s)
     ∂vproj = Δv .* (v .>= 0)
     return vproj, ∂vproj
 end
 
-function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.Nonpositives) where {T}
+function CRC.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.Nonpositives) where {T}
     vproj = projection_on_set(d, v, s)
     ∂vproj = Δv .* (v .<= 0)
     return vproj, ∂vproj
 end
 
-function ChainRulesCore.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::S) where {T,S <: Union{MOI.Nonnegatives,MOI.Nonpositives}}
+function CRC.rrule(::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::S) where {T,S <: Union{MOI.Nonnegatives,MOI.Nonpositives}}
     vproj = projection_on_set(d, v, s)
     function pullback(Δvproj)
-        Δvproj = ChainRulesCore.unthunk(Δvproj)
+        Δvproj = CRC.unthunk(Δvproj)
         v̄ = zeros(eltype(Δvproj), length(Δvproj))
         for i in eachindex(Δvproj)
             if vproj[i] == v[i]
                 v̄[i] = Δvproj[i]
             end
         end
-        return (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), v̄, ChainRulesCore.NoTangent())
+        return (CRC.NoTangent(), CRC.NoTangent(), v̄, CRC.NoTangent())
     end
     return (vproj, pullback)
 end
 
-function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDistance,NormedEpigraphDistance}, v::AbstractVector{T}, s::MOI.SecondOrderCone) where {T}
+function CRC.rrule(::typeof(projection_on_set), d::Union{DefaultDistance,NormedEpigraphDistance}, v::AbstractVector{T}, s::MOI.SecondOrderCone) where {T}
     vproj = projection_on_set(d, v, s)
     t = v[1]
     x = v[2:end]
     norm_x = LinearAlgebra.norm2(x)
     function projection_on_set_pullback(Δv)
-        Δv = ChainRulesCore.unthunk(Δv)
+        Δv = CRC.unthunk(Δv)
         Δt = Δv[1]
         Δx = Δv[2:end]
         v̄ = zeros(eltype(Δv), length(Δv))
-        result_tuple = (ChainRulesCore.NoTangent(), ChainRulesCore.NoTangent(), v̄, ChainRulesCore.NoTangent())
+        result_tuple = (CRC.NoTangent(), CRC.NoTangent(), v̄, CRC.NoTangent())
         if norm_x ≤ t
             v̄ .= Δv
             return result_tuple
@@ -105,7 +105,7 @@ function ChainRulesCore.rrule(::typeof(projection_on_set), d::Union{DefaultDista
     return (vproj, projection_on_set_pullback)
 end
 
-function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, set::MOI.PositiveSemidefiniteConeTriangle) where {T}
+function CRC.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, set::MOI.PositiveSemidefiniteConeTriangle) where {T}
     X = reshape_vector(v, set)
     (λ, U) = LinearAlgebra.eigen(X)
     λmin, λmax = extrema(λ)
@@ -136,7 +136,7 @@ function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::De
     return (vproj, Δvproj)
 end
 
-function ChainRulesCore.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
+function CRC.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistance, v::AbstractVector{T}, s::MOI.ExponentialCone) where {T}
     if _in_exp_cone(v; dual=false)
         return (v, Δv)
     end

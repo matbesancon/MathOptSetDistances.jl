@@ -2,9 +2,8 @@ using ChainRulesCore
 const CRC = ChainRulesCore
 using ChainRulesTestUtils
 
-import MathOptSetDistances
-const MOD = MathOptSetDistances
-const MOI = MathOptSetDistances.MOI
+import MathOptSetDistances as MOD
+const MOI = MOD.MOI
 using FiniteDifferences
 using Test
 using Random
