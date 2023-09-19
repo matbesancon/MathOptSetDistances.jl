@@ -278,7 +278,7 @@ function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{T}, s::M
     λ, U = LinearAlgebra.eigen(X)
     Tp = eltype(λ)
     λm = -min.(λ, zero(Tp))
-    vdist = vec_symm(U * LinearAlgebra.Diagonal(λm) * U')
+    vdist = vectorize(LinearAlgebra.Symmetric(U * LinearAlgebra.Diagonal(λm) * U'))
     return LinearAlgebra.norm(vdist, p)
 end
 

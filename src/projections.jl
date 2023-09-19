@@ -129,7 +129,7 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, set::MOI.Pos
     X = reshape_vector(v, set)
     λ, U = LinearAlgebra.eigen(X)
     D = LinearAlgebra.Diagonal(max.(λ, 0))
-    return vec_symm(U * D * U')
+    return vectorize(LinearAlgebra.Symmetric(U * D * U'))
 end
 
 """
@@ -186,7 +186,7 @@ function reshape_vector(x, set::MOI.AbstractSymmetricMatrixSetTriangle)
 end
 
 """
-    vec_symm(X)
+    vectorize(X::LinearAlgebra.Symmetric)
 
 Returns a vectorized representation of a symmetric matrix `X`.
 `vec(X) = (X11, X12, X22, X13, X23, X33, ..., Xkk)`
@@ -197,8 +197,8 @@ Note that the scalar product for the symmetric matrix in its vectorized form is
 the sum of the pairwise product of the diagonal entries plus twice the sum of
 the pairwise product of the upper diagonal entries; see [p. 634, 1].
 Therefore, this transformation breaks inner products:
-```
-dot(vec_symm(X), vec_symm(Y)) != dot(X, Y).
+```julia
+dot(vectorize(X), vectorize(Y)) != dot(X, Y).
 ```
 
 ### References
@@ -206,8 +206,8 @@ dot(vec_symm(X), vec_symm(Y)) != dot(X, Y).
 [1] Boyd, S. and Vandenberghe, L.. *Convex optimization*. Cambridge university press, 2004.
 
 """
-function vec_symm(X)
-    return X[LinearAlgebra.triu(trues(size(X)))]
+function vectorize(X::LinearAlgebra.Symmetric)
+    return parent(X)[LinearAlgebra.triu(trues(size(X)))]
 end
 
 """
@@ -641,7 +641,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set
                 end
             end
         end
-        @inbounds D[idx, :] = vec_symm(U * B * U')
+        @inbounds D[idx, :] = vectorize(LinearAlgebra.Symmetric(U * B * U'))
         # reset eigenvector
         @inbounds y[idx] = 0
     end
