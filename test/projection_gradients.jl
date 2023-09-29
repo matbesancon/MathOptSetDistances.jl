@@ -1,6 +1,5 @@
 using Test
-using MathOptInterface
-const MOI = MathOptInterface
+import MathOptInterface as MOI
 
 using MathOptSetDistances
 const MOD = MathOptSetDistances
@@ -12,8 +11,7 @@ const bfdm = FiniteDifferences.backward_fdm(5, 1)
 const ffdm = FiniteDifferences.forward_fdm(5, 1)
 const cfdm = FiniteDifferences.central_fdm(5,1)
 
-import ChainRulesCore
-const CRC = ChainRulesCore
+import ChainRulesCore as CRC
 import FillArrays
 
 # type piracy because of https://github.com/JuliaDiff/FiniteDifferences.jl/issues/177
@@ -90,7 +88,7 @@ end
                 L = 3 * tril(rand(n, n))
                 M = L * L'
                 @testset "Positive definite" begin
-                    v = MOD.vec_symm(M)
+                    v = MOD.vectorize(LinearAlgebra.Symmetric(M))
                     dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
@@ -98,7 +96,7 @@ end
                     @test dΠ ≈ I
                 end
                 @testset "Negative definite" begin
-                    v = MOD.vec_symm(-M)
+                    v = MOD.vectorize(LinearAlgebra.Symmetric(-M))
                     dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
@@ -211,16 +209,17 @@ end
             Λ = Diagonal([-f, f])
             Λp = Diagonal([0, f])
             @test A ≈ Q * Λ * Qi
-            v = MOD.vec_symm(A)
+            v = MOD.vectorize(LinearAlgebra.Symmetric(A))
             Πv = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
-            Π = MOD.unvec_symm(Πv, 2)
+            Π = MOD.reshape_vector(Πv, MOI.PositiveSemidefiniteConeTriangle(2))
             @test Π ≈ Q * Λp * Qi
             DΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
             # directional derivative
             for _ in 1:Ntrials
                 Xd = randn(2,2)
-                xd = MOD.vec_symm(Xd)
-                @test DΠ * xd ≈ MOD.vec_symm(Q * (B .* (Q' * Xd * Q)) * Q')
+                xd = MOD.vectorize(LinearAlgebra.Symmetric(Xd))
+                QBX = Q * (B .* (Q' * Xd * Q)) * Q'
+                @test DΠ * xd ≈ MOD.vectorize(LinearAlgebra.Symmetric(QBX))
             end
             grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
             grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
@@ -382,7 +381,7 @@ end
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                     @test ≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol)
                     if !(≈(dΠ, grad_fdm1,atol=tol) || ≈(dΠ, grad_fdm2, atol=tol) || ≈(dΠ, grad_fdm3, atol=tol))
-                        @show MathOptSetDistances._pow_cone_∇proj_case_3(v, s)
+                        @show MOD._pow_cone_∇proj_case_3(v, s)
                         error("α=$α\nv=$v\ndΠ = $dΠ\ncase=$case\nFD1=$grad_fdm1\nFD2=$grad_fdm2\nFD3=$grad_fdm3")
                     end
                 end

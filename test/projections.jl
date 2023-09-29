@@ -62,7 +62,7 @@ end
     c2 = MOI.SecondOrderCone(5)
     v1 = rand(Float64, 10)
     v2 = rand(Float64, 5)
-    c1 = MOI.PositiveSemidefiniteConeTriangle(5)
+    c1 = MOI.PositiveSemidefiniteConeTriangle(4)
     output_1 = MOD.projection_on_set(DD, v1, c1)
     output_2 = MOD.projection_on_set(DD, v2, c2)
     output_joint = MOD.projection_on_set(DD, [v1, v2], [c1, c2])
@@ -72,7 +72,7 @@ end
 @testset "Non-trivial block projection gradient" begin
     v1 = rand(Float64, 15)
     v2 = rand(Float64, 5)
-    c1 = MOI.PositiveSemidefiniteConeTriangle(6)
+    c1 = MOI.PositiveSemidefiniteConeTriangle(5)
     c2 = MOI.SecondOrderCone(5)
 
     output_1 = MOD.projection_gradient_on_set(DD, v1, c1)
@@ -81,6 +81,15 @@ end
     @test output_joint ≈ BlockDiagonal([output_1, output_2])
 end
 
+@testset "Scaled projection" begin
+    a = [1, 1.0, 1]
+    b = [1, sqrt(2), 1]
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    @test MOD.projection_on_set(DD, a, set) ≈ a
+    @test MOD.projection_on_set(DD, b, set) ≈ 1.20710678 * a
+    @test MOD.projection_on_set(DD, a, MOI.Scaled(set)) ≈ a
+    @test MOD.projection_on_set(DD, b, MOI.Scaled(set)) ≈ b
+end
 
 @testset "Exponential Cone Projections" begin
     function det_case_exp_cone(v; dual=false)
@@ -134,7 +143,7 @@ end
             cone,
         )
 
-        MOI.add_constraint(
+        MOI.Utilities.normalize_and_add_constraint(
             model,
             sum((1.0 * z[i] - x[i])^2 for i in 1:3) - t,
             MOI.LessThan(0.0),
@@ -222,7 +231,7 @@ end
             cone,
         )
 
-        MOI.add_constraint(
+        MOI.Utilities.normalize_and_add_constraint(
             model,
             sum((1.0 * z[i] - x[i])^2 for i in 1:3) - t,
             MOI.LessThan(0.0),

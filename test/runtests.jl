@@ -1,9 +1,8 @@
 
 using Test
 
-import MathOptSetDistances
-const MOD = MathOptSetDistances
-const MOI = MathOptSetDistances.MOI
+import MathOptSetDistances as MOD
+const MOI = MOD.MOI
 const DD = MOD.DefaultDistance()
 
 using LinearAlgebra

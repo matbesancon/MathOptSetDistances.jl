@@ -2,9 +2,8 @@ using ChainRulesCore
 const CRC = ChainRulesCore
 using ChainRulesTestUtils
 
-import MathOptSetDistances
-const MOD = MathOptSetDistances
-const MOI = MathOptSetDistances.MOI
+import MathOptSetDistances as MOD
+const MOI = MOD.MOI
 using FiniteDifferences
 using Test
 using Random
@@ -135,7 +134,7 @@ end
             for _ in 1:5
                 L = 3 * tril(rand(n, n))
                 M = L * L'
-                v0 = MOD.vec_symm(M)
+                v0 = MOD.vectorize(LinearAlgebra.Symmetric(M))
                 v = Vector{Float64}(undef, length(v0))
                 Π = Vector{Float64}(undef, length(v0))
                 Δv = Vector{Float64}(undef, length(v0))
@@ -183,16 +182,16 @@ end
             ]
             Λ = Diagonal([-f, f])
             Λp = Diagonal([0, f])
-            v .= MOD.vec_symm(A)
+            v .= MOD.vectorize(LinearAlgebra.Symmetric(A))
             vproj = MOD.projection_on_set(DD, v, s)
-            Π .= MOD.unvec_symm(vproj, 2)
+            Π .= MOD.reshape_vector(vproj, MOI.PositiveSemidefiniteConeTriangle(2))
             @test Π ≈ Q * Λp * Qi
             DΠ .= MOD.projection_gradient_on_set(DD, v, s)
             for _ in 1:20
                 Xd .= ChainRulesTestUtils.rand_tangent(Π)
-                xd = MOD.vec_symm(Xd)
-                dir_deriv_theo = MOD.vec_symm(
-                    Q * (B .* (Q' * Xd * Q)) * Q'
+                xd = MOD.vectorize(LinearAlgebra.Symmetric(Xd))
+                dir_deriv_theo = MOD.vectorize(
+                    LinearAlgebra.Symmetric(Q * (B .* (Q' * Xd * Q)) * Q')
                 )
                 @test DΠ * xd ≈ dir_deriv_theo
                 (vproj_frule, Δvproj) = CRC.frule((CRC.NoTangent(), CRC.NoTangent(), xd, CRC.NoTangent()), MOD.projection_on_set, DD, v, s)

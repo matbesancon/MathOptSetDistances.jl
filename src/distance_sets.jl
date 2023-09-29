@@ -274,11 +274,11 @@ function distance_to_set(d::DefaultDistance, v::AbstractVector{T}, s::MOI.Indica
 end
 
 function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{T}, s::MOI.PositiveSemidefiniteConeTriangle) where {p, T <: Real}
-    X = unvec_symm(v, s.side_dimension)
+    X = reshape_vector(v, s)
     λ, U = LinearAlgebra.eigen(X)
     Tp = eltype(λ)
     λm = -min.(λ, zero(Tp))
-    vdist = vec_symm(U * LinearAlgebra.Diagonal(λm) * U')
+    vdist = vectorize(LinearAlgebra.Symmetric(U * LinearAlgebra.Diagonal(λm) * U'))
     return LinearAlgebra.norm(vdist, p)
 end
 
