@@ -95,13 +95,13 @@ function distance_to_set(::DefaultDistance, v, s::Union{MOI.NormInfinityCone, MO
     return distance_to_set(EpigraphViolationDistance(), v, s)
 end
 
-function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{<:Real}, s::MOI.RotatedSecondOrderCone) where {p}
+function distance_to_set(::NormedEpigraphDistance{p}, v::AbstractVector{T}, s::MOI.RotatedSecondOrderCone) where {p,T<:Real}
     _check_dimension(v, s)
     t = v[1]
     u = v[2]
     xs = @view(v[3:end])
     return LinearAlgebra.norm(
-        (max(-t, zero(t)), max(-u, zero(u)), max(LinearAlgebra.dot(xs,xs) - 2 * t * u)),
+        (max(-t, zero(T)), max(-u, zero(T)), max(LinearAlgebra.dot(xs,xs) - 2 * t * u, zero(T))),
         p,
     )
 end
