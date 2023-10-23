@@ -1,7 +1,7 @@
 name = "MathOptSetDistances"
 uuid = "3b969827-a86c-476c-9527-bb6f1a8fbad5"
 authors = ["Mathieu Besançon & contributors"]
-version = "0.2.7"
+version = "0.2.8"
 
 [deps]
 BlockDiagonals = "0a1fb500-61f7-11e9-3c65-f5ef3456f9f0"
