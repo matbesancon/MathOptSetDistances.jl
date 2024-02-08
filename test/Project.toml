@@ -14,5 +14,5 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 FiniteDifferences = "0.12"
-Hypatia = "=0.7.0"
-SCS = "=1.1.0"
+Hypatia = "=0.7.4"
+SCS = "=2.0.0"
