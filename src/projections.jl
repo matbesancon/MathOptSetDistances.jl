@@ -649,6 +649,19 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set
 end
 
 """
+    projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set::MOI.Scaled) where {T}
+
+derivative of projection of vector `v` on the scaled version of `set.set`.
+"""
+function projection_gradient_on_set(d::DefaultDistance, v::AbstractVector{T}, set::MOI.Scaled) where {T}
+    scale = MOI.Utilities.SetDotScalingVector{T}(set.set)
+    D = LinearAlgebra.Diagonal(scale)
+    # ∂(D⋅p(D⁻¹⋅v))/∂v = ∂(D⋅p(D⁻¹⋅v))/∂(D⁻¹⋅v) ⋅ ∂(D⁻¹⋅v)/∂v
+    #                 = D ⋅ ∂(p(D⁻¹⋅v))/∂(D⁻¹⋅v) ⋅ D⁻¹
+    return D * projection_gradient_on_set(d, D \ v, set.set) / D
+end
+
+"""
     projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.ExponentialCone) where {T}
 
 derivative of projection of vector `v` on closure of the exponential cone,
