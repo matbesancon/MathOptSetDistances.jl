@@ -99,8 +99,8 @@ end
                 end
                 @testset "Scaled positive definite" begin
                     dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), D * v, MOI.Scaled(s))
-                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), D * v)[1]'
-                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), D * v)[1]'
+                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, MOI.Scaled(s)), D * v)[1]'
+                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, MOI.Scaled(s)), D * v)[1]'
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                     @test dΠ ≈ I
                 end
@@ -115,8 +115,8 @@ end
                 end
                 @testset "Scaled negative definite" begin
                     dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), -D * v, MOI.Scaled(s))
-                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), -D * v)[1]'
-                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), -D * v)[1]'
+                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, MOI.Scaled(s)), -D * v)[1]'
+                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, MOI.Scaled(s)), -D * v)[1]'
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                     if !isapprox(det(M), 0, atol=10e-6)
                         @test all(dΠ .≈ 0)
