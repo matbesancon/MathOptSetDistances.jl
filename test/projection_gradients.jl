@@ -84,22 +84,39 @@ end
         end
         @testset "PSD cone" begin
             s = MOI.PositiveSemidefiniteConeTriangle(n)
+            scale = MOI.Utilities.SetDotScalingVector{Float64}(s)
+            D = LinearAlgebra.Diagonal(scale)
             for _ in 1:Ntrials
                 L = 3 * tril(rand(n, n))
                 M = L * L'
+                v = MOD.vectorize(LinearAlgebra.Symmetric(M))
                 @testset "Positive definite" begin
-                    v = MOD.vectorize(LinearAlgebra.Symmetric(M))
                     dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                     @test dΠ ≈ I
                 end
+                @testset "Scaled positive definite" begin
+                    dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), D * v, MOI.Scaled(s))
+                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, MOI.Scaled(s)), D * v)[1]'
+                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, MOI.Scaled(s)), D * v)[1]'
+                    @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                    @test dΠ ≈ I
+                end
                 @testset "Negative definite" begin
-                    v = MOD.vectorize(LinearAlgebra.Symmetric(-M))
-                    dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
-                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
-                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
+                    dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), -v, s)
+                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), -v)[1]'
+                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), -v)[1]'
+                    @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
+                    if !isapprox(det(M), 0, atol=10e-6)
+                        @test all(dΠ .≈ 0)
+                    end
+                end
+                @testset "Scaled negative definite" begin
+                    dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), -D * v, MOI.Scaled(s))
+                    grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, MOI.Scaled(s)), -D * v)[1]'
+                    grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, MOI.Scaled(s)), -D * v)[1]'
                     @test size(grad_fdm1) == size(grad_fdm2) == size(dΠ)
                     if !isapprox(det(M), 0, atol=10e-6)
                         @test all(dΠ .≈ 0)
@@ -190,6 +207,8 @@ end
     end
     @testset "Indefinite matrix" begin
         s = MOI.PositiveSemidefiniteConeTriangle(2)
+        scale = MOI.Utilities.SetDotScalingVector{Float64}(s)
+        D = LinearAlgebra.Diagonal(scale)
         Q = [
             1 0
             0 -1
@@ -211,19 +230,27 @@ end
             @test A ≈ Q * Λ * Qi
             v = MOD.vectorize(LinearAlgebra.Symmetric(A))
             Πv = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
-            Π = MOD.reshape_vector(Πv, MOI.PositiveSemidefiniteConeTriangle(2))
+            Π = MOD.reshape_vector(Πv, s)
             @test Π ≈ Q * Λp * Qi
+            scaled_Πv = MOD.projection_on_set(MOD.DefaultDistance(), D * v, MOI.Scaled(s))
+            scaled_Π = MOD.reshape_vector(D \ scaled_Πv, s)
+            @test scaled_Π ≈ Q * Λp * Qi
             DΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
+            scaled_DΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), D * v, MOI.Scaled(s))
             # directional derivative
             for _ in 1:Ntrials
                 Xd = randn(2,2)
                 xd = MOD.vectorize(LinearAlgebra.Symmetric(Xd))
                 QBX = Q * (B .* (Q' * Xd * Q)) * Q'
                 @test DΠ * xd ≈ MOD.vectorize(LinearAlgebra.Symmetric(QBX))
+                @test scaled_DΠ * D * xd ≈ D * MOD.vectorize(LinearAlgebra.Symmetric(QBX))
             end
             grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
             grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
             @test grad_fdm1 ≈ DΠ || grad_fdm2 ≈ DΠ
+            scaled_grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, MOI.Scaled(s)), D * v)[1]'
+            scaled_grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, MOI.Scaled(s)), D * v)[1]'
+            @test scaled_grad_fdm1 ≈ scaled_DΠ || scaled_grad_fdm2 ≈ scaled_DΠ
         end
     end
     @testset "Scalar $ST" for ST in (MOI.LessThan, MOI.GreaterThan, MOI.EqualTo)
