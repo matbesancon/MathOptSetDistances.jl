@@ -388,7 +388,7 @@ function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualE
 end
 
 """
-    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone; [max_iters=10_000]) where {T}
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone; [max_iters_newton = 3, max_iters_bisection = 1000]) where {T}
 
 projection of vector `v` on the power cone
 i.e. `K = {(x,y,z) | x^a * y^(1-a) >= |z|, x>=0, y>=0}`.
@@ -397,7 +397,13 @@ References:
 * [Differential properties of Euclidean projection onto power cone]
 (https://link.springer.com/article/10.1007/s00186-015-0514-0), Prop 2.2
 """
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.PowerCone; max_iters=10_000) where {T}
+function projection_on_set(
+    ::DefaultDistance,
+    v::AbstractVector{T},
+    s::MOI.PowerCone;
+    max_iters_newton = 3,
+    max_iters_bisection = 1000,
+) where {T}
     _check_dimension(v, s)
 
     if _in_pow_cone(v, s)
@@ -411,7 +417,12 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Power
         return [max(v[1],0), max(v[2],0), 0]
     end
 
-    _, proj4 = _solve_system_pow_cone(v, s, max_iters=max_iters)
+    _, proj4 = _solve_system_power_cone(
+        v,
+        s,
+        max_iters_newton = max_iters_newton,
+        max_iters_bisection=max_iters_bisection,
+    )
     return proj4
 end
 
@@ -511,7 +522,7 @@ function _solve_system_power_cone_newton(v::AbstractVector{T}, s::MOI.PowerCone;
 end
 
 """
-    _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone) where {T}
+    _solve_system_power_cone(v::AbstractVector{T}, s::MOI.PowerCone) where {T}
 
 Solves the system in [1, Proposition 2.2] to determine projection.
 Returns tuple `(r, proj)`:
@@ -844,10 +855,10 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     # if (x < 0 || y < 0) && abs(z) <= 1e-2*norm(v)*(0.5 - abs(0.5 - α))
     #     r = eps()
     # else
-    #     r, _ = _solve_system_pow_cone(v, s)
+    #     r, _ = _solve_system_power_cone(v, s)
     # end
 
-    r, _ = _solve_system_pow_cone(v, s)
+    r, _ = _solve_system_power_cone(v, s)
     za = abs(z)
     gx = sqrt(x^2 + 4*α*r*(za - r))
     gy = sqrt(y^2 + 4*(1-α)*r*(za - r))
