@@ -26,8 +26,8 @@ A multivariate Gaussian generator without points too close to 0
 function safe_randn(n)
     v = 2 * randn(n)
     for i in eachindex(v)
-        while v[i] ≈ 0
-            v[i] = 2 * randn()
+        while abs(v[i]) < 1e-6
+            v[i] *= 2
         end
     end
     return v
