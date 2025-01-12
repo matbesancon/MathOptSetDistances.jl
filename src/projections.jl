@@ -617,7 +617,6 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set
     y = zeros(Tp, n)
     D = zeros(Tp, n, n)
 
-    dim = MOI.side_dimension(set)
     for idx in 1:n
         # set eigenvector
         y[idx] = 1
@@ -626,15 +625,15 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set
         X̃ = reshape_vector(y, set)
         B = U' * X̃ * U
 
-        for i in 1:size(B)[1] # do the hadamard product
-            for j in 1:size(B)[2]
-                if (i <= k && j <= k)
+        for i in axes(B, 1) # do the hadamard product
+            for j in axes(B, 2)
+                if i <= k && j <= k
                     @inbounds B[i, j] = 0
-                elseif (i > k && j <= k)
+                elseif i > k && j <= k
                     λpi = max(λ[i], zero(Tp))
                     λmj = -min(λ[j], zero(Tp))
                     @inbounds B[i, j] *= λpi / (λmj + λpi)
-                elseif (i <= k && j > k)
+                elseif i <= k && j > k
                     λmi = -min(λ[i], zero(Tp))
                     λpj = max(λ[j], zero(Tp))
                     @inbounds B[i, j] *= λpj / (λmi + λpj)
