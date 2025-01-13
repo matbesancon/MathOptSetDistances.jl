@@ -562,12 +562,12 @@ function _solve_system_power_cone(
     # Newton has a tendency to overshoot and hit the boundary. Once the boundary
     # is hit, it will compute `NaN` so we'll need bisection to get an answer.
 
-    Φ_bissection = Inf
+    Φ_bisection = Inf
     if isnan(r_newton) || abs(Φ_newton) > tol
-        r_bissection = _solve_system_power_cone_bisection(v, s; max_iters = max_iters_bisection, tol)
-        println(r_bissection)
-        Φ_bissection = _power_cone_system(r_bissection, x, y, z, α)
-        if abs(Φ_bissection) > tol
+        r_bisection = _solve_system_power_cone_bisection(v, s; max_iters = max_iters_bisection, tol)
+        println(r_bisection)
+        Φ_bisection = _power_cone_system(r_bisection, x, y, z, α)
+        if abs(Φ_bisection) > tol
             # This happens for instance for
             # `_solve_system_power_cone([-10, 10, 1e-3], MOI.PowerCone(0.15))`
             # The value of `r` is found by the bisection to be between
@@ -576,11 +576,11 @@ function _solve_system_power_cone(
             # 0.001
             # It's not possible to do better for `Float64` but the tolerance requested
             # by the user is not satisfied so we still warn
-            @warn("Error `$(abs(Φ_bissection)) > $tol` after maximum iterations hit for projection of $v onto $s")
+            @warn("Error `$(abs(Φ_bisection)) > $tol` after maximum iterations hit for projection of $v onto $s")
         end
     end
-    r = if isnan(r_newton) || abs(Φ_newton) > abs(Φ_bissection)
-        r_bissection
+    r = if isnan(r_newton) || abs(Φ_newton) > abs(Φ_bisection)
+        r_bisection
     else
         r_newton
     end
