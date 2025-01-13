@@ -852,8 +852,6 @@ References:
 (https://link.springer.com/article/10.1007/s00186-015-0514-0), Theorem 3.1
 """
 function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.PowerCone) where {T}
-    @show v
-    @show s
     _check_dimension(v, s)
 
     if _in_pow_cone(v, s)
