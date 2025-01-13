@@ -497,8 +497,6 @@ function _solve_system_power_cone_bisection(
             break
         end
     end
-    println(pos)
-    println(neg)
     return r
 end
 
