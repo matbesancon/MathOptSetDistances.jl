@@ -276,7 +276,7 @@ end
     @test all(case_p .> 0) && all(case_d .> 0)
 
     @testset "Difficult Projections" begin
-        # these are difficult projections that tipically fail with Newton method
+        # these are difficult projections that typically fail with Newton method
         candidates = [
             ([-2.1437051121224258, 1.9673722101310502, 0.8499144338875969], 0.15),
             ([1.2782001669773202, -0.024746244349335353, 0.020923505930442263], 0.50),
