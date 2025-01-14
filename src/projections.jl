@@ -387,8 +387,13 @@ function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, ::MOI.DualE
     return SVector{3,T}(v[1] + p[1], v[2] + p[2], v[3] + p[3])
 end
 
+const DEFAULT_POWER_CONE_MAX_ITERS_NEWTON = 100
+const DEFAULT_POWER_CONE_MAX_ITERS_BISSECTION = 1_000
+const DEFAULT_POWER_CONE_TOL_CONV = 1e-10
+const DEFAULT_POWER_CONE_TOL_IN_CONE = 1e-10
+
 """
-    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone; [max_iters=10_000]) where {T}
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone; [max_iters_newton = 100, max_iters_bisection = 1000]) where {T}
 
 projection of vector `v` on the power cone
 i.e. `K = {(x,y,z) | x^a * y^(1-a) >= |z|, x>=0, y>=0}`.
@@ -397,7 +402,13 @@ References:
 * [Differential properties of Euclidean projection onto power cone]
 (https://link.springer.com/article/10.1007/s00186-015-0514-0), Prop 2.2
 """
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.PowerCone; max_iters=10_000) where {T}
+function projection_on_set(
+    ::DefaultDistance,
+    v::AbstractVector{T},
+    s::MOI.PowerCone;
+    max_iters_newton = DEFAULT_POWER_CONE_MAX_ITERS_NEWTON,
+    max_iters_bisection = DEFAULT_POWER_CONE_MAX_ITERS_BISSECTION,
+) where {T}
     _check_dimension(v, s)
 
     if _in_pow_cone(v, s)
@@ -407,28 +418,124 @@ function projection_on_set(::DefaultDistance, v::AbstractVector{T}, s::MOI.Power
         # if in polar cone Ko = -K*
         return zeros(T, 3)
     end
-    if abs(v[3]) <= 1e-10
+    if abs(v[3]) <= DEFAULT_POWER_CONE_TOL_IN_CONE
         return [max(v[1],0), max(v[2],0), 0]
     end
 
-    _, proj4 = _solve_system_pow_cone(v, s, max_iters=max_iters)
+    _, proj4 = _solve_system_power_cone(
+        v,
+        s,
+        max_iters_newton = max_iters_newton,
+        max_iters_bisection = max_iters_bisection,
+    )
     return proj4
 end
 
-function _in_pow_cone(v::AbstractVector{T}, cone::MOI.PowerCone; tol=1e-10) where {T}
+function _in_pow_cone(v::AbstractVector{T}, cone::MOI.PowerCone; tol=DEFAULT_POWER_CONE_TOL_IN_CONE) where {T}
     α = cone.exponent
     return v[1] >= 0 && v[2] >= 0 && tol + v[1]^α * v[2]^(1-α) >= abs(v[3])
 end
 
-function _in_pow_cone(v::AbstractVector{T}, cone::MOI.DualPowerCone; tol=1e-10) where {T}
+function _in_pow_cone(v::AbstractVector{T}, cone::MOI.DualPowerCone; tol=DEFAULT_POWER_CONE_TOL_IN_CONE) where {T}
     α = cone.exponent
     return (
-        v[1] >= 0 && v[2] >=0 && tol + (v[1])^α * (v[2])^(1-α) >= α^α * (1-α)^(1-α) * abs(v[3])
+        v[1] >= 0 && v[2] >= 0 && tol + (v[1])^α * (v[2])^(1-α) >= α^α * (1-α)^(1-α) * abs(v[3])
     )
 end
 
+function _power_cone_system_factor(xi, αi, z, r)
+    # If `xi` is negative and `r` is very close to `abs(z)`,
+    # we get to a point where `√(x² + a) + x` is zero.
+    # Even if the difference is small, we would like to
+    # get a more accurate value than zero.
+    # In order to achieve this, we use the following trick:
+    # √(x² + a) + x = (x^2 + a - x^2) / √(x^2 + a) - x
+    xi2 = xi^2
+    a = 4*αi*r*(abs(z) - r)
+    root = xi2 + a
+    if xi > 0
+        return xi + sqrt(root)
+    else
+        return a / (sqrt(root) - xi)
+    end
+end
+
+function _power_cone_system(r, px, py, α)
+    return 0.5 * (px^α * py^(1-α)) - r
+end
+
+function _power_cone_system(r, x, y, z, α)
+    return _power_cone_system(
+        r,
+        _power_cone_system_factor(x, α, z, r),
+        _power_cone_system_factor(y, 1 - α, z, r),
+        α,
+    )
+end
+
+function _solve_system_power_cone_bisection(
+    v::AbstractVector{T},
+    s::MOI.PowerCone;
+    max_iters=DEFAULT_POWER_CONE_MAX_ITERS_BISSECTION,
+    tol=DEFAULT_POWER_CONE_TOL_CONV
+) where {T}
+    x, y, z = v
+    α = s.exponent
+    # Φ is positive for r = 0 and negative for r = |z| so we can just bisect
+    pos = zero(T)
+    neg = abs(z)
+    r = (pos + neg) / 2
+    for _ in 1:max_iters
+        Φ = _power_cone_system(r, x, y, z, α)
+        if Φ < 0
+            neg = r
+        else
+            pos = r
+        end
+        r = (pos + neg) / 2
+        if abs(Φ) < tol
+            break
+        end
+    end
+    return r
+end
+
+function _solve_system_power_cone_newton(
+    v::AbstractVector{T},
+    s::MOI.PowerCone;
+    max_iters=DEFAULT_POWER_CONE_MAX_ITERS_NEWTON,
+    tol=DEFAULT_POWER_CONE_TOL_CONV
+) where {T}
+    x, y, z = v
+    α = s.exponent
+    # Solve with Newton method
+    # Start Newton at |z|/2. Sol in set (0, |z|)
+    dΦ_prod_dr(xi,αi,z,r,px) = 2*αi*(abs(z) - 2r) / (px - xi)
+    dΦ_dr(r,phi,px,py,dpx,dpy) = (phi+r) * (α * dpx / px + (1-α) * dpy / py) - 1
+    px, py = zero(T), zero(T)
+    r = abs(z) * 0.46
+    for _ in 1:max_iters
+        if isnan(r)
+            break
+        end
+        px = _power_cone_system_factor(x, α, z, r)
+        py = _power_cone_system_factor(y, 1 - α, z, r)
+        Φ = _power_cone_system(r, px, py, α)
+        if abs(Φ) < tol
+            break
+        end
+        dpx = dΦ_prod_dr(x, α, z, r, px)
+        dpy = dΦ_prod_dr(y, 1 - α, z, r, py)
+        dΦ = dΦ_dr(r, Φ, px, py, dpx, dpy)
+
+        # Newton step, bounded to interval
+        r = min(max(r - Φ/dΦ, 0), abs(z))
+    end
+    return r
+end
+
 """
-    _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone) where {T}
+    _solve_system_power_cone(v::AbstractVector{T}, s::MOI.PowerCone) where {T}
 
 Solves the system in [1, Proposition 2.2] to determine projection.
 Returns tuple `(r, proj)`:
@@ -439,37 +546,47 @@ References:
 [1]. [Differential properties of Euclidean projection onto power cone]
 (https://link.springer.com/article/10.1007/s00186-015-0514-0), Prop 2.2
 """
-function _solve_system_pow_cone(v::AbstractVector{T}, s::MOI.PowerCone; max_iters=10_000, tol=1e-10) where {T}
+function _solve_system_power_cone(
+    v::AbstractVector{T},
+    s::MOI.PowerCone;
+    max_iters_newton = DEFAULT_POWER_CONE_MAX_ITERS_NEWTON,
+    max_iters_bisection = DEFAULT_POWER_CONE_MAX_ITERS_BISSECTION,
+    tol=DEFAULT_POWER_CONE_TOL_CONV,
+) where {T}
     x, y, z = v
     α = s.exponent
-    Phi_prod(xi, αi, z, r) = max(xi + sqrt(xi^2 + 4*αi*r*(abs(z) - r)), 1e-12)
-    Phi(r) = 0.5*(Phi_prod(x,α,z,r)^α * Phi_prod(y,1-α,z,r)^(1-α)) - r
-    Phi(r,px,py) = 0.5*(px^α * py^(1-α)) - r
-    dPhi_prod_dr(xi,αi,z,r,px) = 2*αi*(abs(z) - 2r) / (px - xi)
-    dPhi_dr(r,phi,px,py,dpx,dpy) = (phi+r) * (α * dpx / px + (1-α) * dpy / py) - 1
+    # We first try to quickly get an accurate solution with Newton:
+    r_newton = _solve_system_power_cone_newton(v, s; max_iters = max_iters_newton, tol)
+    Φ_newton = !isnan(r_newton) ? _power_cone_system(r_newton, x, y, z, α) : NaN
+    # When the optimal solution `r` is close to the boundaries `0` and `|z|`,
+    # Newton has a tendency to overshoot and hit the boundary. Once the boundary
+    # is hit, it will compute `NaN` so we'll need bisection to get an answer.
 
-    # Solve with Newton method
-    # Start Newton at |z|/2. Sol in set (0, |z|)
-    px, py = zero(T), zero(T)
-    r = abs(z) / 2
-    for ii in 1:max_iters
-        px = Phi_prod(x, α, z, r)
-        py = Phi_prod(y, 1-α, z, r)
-        phi = Phi(r, px, py)
-
-        abs(phi) < tol && break
-
-        dpx = dPhi_prod_dr(x, α, z, r, px)
-        dpy = dPhi_prod_dr(y, 1-α, z, r, py)
-        dphi = dPhi_dr(r, phi, px, py, dpx, dpy)
-
-        # Newton step, bounded to interval
-        r = min(max(r - phi/dphi, 0), abs(z))
-
-        ii == max_iters && @warn("Maximum iterations hit on power cone projection")
+    Φ_bisection = Inf
+    if isnan(r_newton) || abs(Φ_newton) > tol
+        r_bisection = _solve_system_power_cone_bisection(v, s; max_iters = max_iters_bisection, tol)
+        println(r_bisection)
+        Φ_bisection = _power_cone_system(r_bisection, x, y, z, α)
+        if abs(Φ_bisection) > tol
+            # This happens for instance for
+            # `_solve_system_power_cone([-10, 10, 1e-3], MOI.PowerCone(0.15))`
+            # The value of `r` is found by the bisection to be between
+            # 0.0009999999999999998
+            # and
+            # 0.001
+            # It's not possible to do better for `Float64` but the tolerance requested
+            # by the user is not satisfied so we still warn
+            @warn("Error `$(abs(Φ_bisection)) > $tol` after maximum iterations hit for projection of $v onto $s")
+        end
     end
-
-    return r, [0.5*px, 0.5*py, sign(z)*r]
+    r = if isnan(r_newton) || abs(Φ_newton) > abs(Φ_bisection)
+        r_bisection
+    else
+        r_newton
+    end
+    px = _power_cone_system_factor(x, α, z, r)
+    py = _power_cone_system_factor(y, 1 - α, z, r)
+    return r, [px / T(2), py / T(2), sign(z) * r]
 end
 
 """
@@ -744,7 +861,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
         # if in polar cone Ko = -K*
         return zeros(T, 3, 3)
     end
-    if abs(v[3]) <= 1e-10
+    if abs(v[3]) <= DEFAULT_POWER_CONE_TOL_IN_CONE
         return _pow_cone_∇proj_case_3(v, s)
     end
 
@@ -757,10 +874,10 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, s::
     # if (x < 0 || y < 0) && abs(z) <= 1e-2*norm(v)*(0.5 - abs(0.5 - α))
     #     r = eps()
     # else
-    #     r, _ = _solve_system_pow_cone(v, s)
+    #     r, _ = _solve_system_power_cone(v, s)
     # end
 
-    r, _ = _solve_system_pow_cone(v, s)
+    r, _ = _solve_system_power_cone(v, s)
     za = abs(z)
     gx = sqrt(x^2 + 4*α*r*(za - r))
     gy = sqrt(y^2 + 4*(1-α)*r*(za - r))
