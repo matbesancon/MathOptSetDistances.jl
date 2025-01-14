@@ -393,7 +393,7 @@ const DEFAULT_POWER_CONE_TOL_CONV = 1e-10
 const DEFAULT_POWER_CONE_TOL_IN_CONE = 1e-10
 
 """
-    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone; [max_iters_newton = 3, max_iters_bisection = 1000]) where {T}
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PowerCone; [max_iters_newton = 100, max_iters_bisection = 1000]) where {T}
 
 projection of vector `v` on the power cone
 i.e. `K = {(x,y,z) | x^a * y^(1-a) >= |z|, x>=0, y>=0}`.
