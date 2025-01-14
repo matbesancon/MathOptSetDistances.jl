@@ -274,6 +274,20 @@ end
         end
     end
     @test all(case_p .> 0) && all(case_d .> 0)
+
+    @testset "Difficult Projections" begin
+        # these are difficult projections that tipically fail with Newton method
+        candidates = [
+            ([-2.1437051121224258, 1.9673722101310502, 0.8499144338875969], 0.15),
+            ([1.2782001669773202, -0.024746244349335353, 0.020923505930442263], 0.50),
+            ([1.635118813047526, -1.7337027657509976, 0.1521032906785757], 0.85),
+            ([-1.0626658716421513, 0.2640095391880903, -0.18047124406952353], 0.05),
+            ([0.7154127036250458, -1.2726229049439148, -0.20181164946348515], 0.95),
+        ]
+        for (x, α) in candidates
+            @test _test_proj_pow_cone_help(x, α, atol; dual=false)
+        end
+    end
 end
 
 @testset "Simplex projections" begin
