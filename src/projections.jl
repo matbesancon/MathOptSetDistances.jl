@@ -809,7 +809,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set
                 end
             end
         end
-        @inbounds D[idx, :] = _vectorize(U * B * U')
+        @inbounds D[idx, :] = _vectorize(U * B * U', set)
         # reset eigenvector
         @inbounds y[idx] = 0
     end
