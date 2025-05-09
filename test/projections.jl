@@ -123,9 +123,9 @@ end
         model = MOI.instantiate(SCS.Optimizer, with_bridge_type = Float64)
         MOI.set(model, MOI.Silent(), true)
 
-        MOI.set(model, MOI.RawOptimizerAttribute("eps_abs"), 1e-8)
-        MOI.set(model, MOI.RawOptimizerAttribute("eps_rel"), 1e-8)
-        MOI.set(model, MOI.RawOptimizerAttribute("max_iters"), 1000)
+        MOI.set(model, MOI.RawOptimizerAttribute("eps_abs"), 1e-7)
+        MOI.set(model, MOI.RawOptimizerAttribute("eps_rel"), 1e-7)
+        MOI.set(model, MOI.RawOptimizerAttribute("max_iters"), 10_000)
 
         z = MOI.add_variables(model, 3)
         t = MOI.add_variable(model)
