@@ -148,8 +148,6 @@ Projection of vector `v` on the scaled version of `set.set`.
 function projection_on_set(d::DefaultDistance, v::AbstractVector{T}, set::MOI.Scaled) where {T}
     scale = MOI.Utilities.SetDotScalingVector{T}(set.set)
     D = LinearAlgebra.Diagonal(scale)
-    @show v
-    @show D
     return D * projection_on_set(d, D \ v, set.set)
 end
 
