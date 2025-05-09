@@ -123,8 +123,8 @@ end
         model = MOI.instantiate(SCS.Optimizer, with_bridge_type = Float64)
         MOI.set(model, MOI.Silent(), true)
 
-        MOI.set(model, MOI.RawOptimizerAttribute("eps_abs"), 1e-10)
-        MOI.set(model, MOI.RawOptimizerAttribute("eps_rel"), 1e-10)
+        MOI.set(model, MOI.RawOptimizerAttribute("eps_abs"), 1e-7)
+        MOI.set(model, MOI.RawOptimizerAttribute("eps_rel"), 1e-7)
         MOI.set(model, MOI.RawOptimizerAttribute("max_iters"), 10_000)
 
         z = MOI.add_variables(model, 3)
@@ -150,6 +150,7 @@ end
         )
 
         MOI.optimize!(model)
+        @test MOI.get(model, MOI.TerminationStatus()) == MOI.OPTIMAL
 
         z_star = MOI.get.(model, MOI.VariablePrimal(), z)
 
