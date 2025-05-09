@@ -187,7 +187,7 @@ function reshape_vector(x, set::MOI.AbstractSymmetricMatrixSetTriangle)
     X = zeros(eltype(x), dim, dim)
     idx = 0
     for j in 1:dim
-        for i in 1:i
+        for i in 1:j
             idx += 1
             X[i, j] = x[idx]
             X[j, i] = conj(x[idx])
