@@ -142,7 +142,7 @@ end
             for _ in 1:10
                 X .= randn(n, n)
                 X .= (X .+ X')
-                v = MOD.vectorize(LinearAlgebra.Symmetric(X))
+                v = MOD._vectorize(X, s)
                 vproj = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
                 dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
                 @test LinearAlgebra.norm(v - vproj) ≈ dist atol=10e-5
@@ -151,13 +151,13 @@ end
                 λ = LinearAlgebra.eigvals(X)
                 if λ[1] >= 0
                     Xm = X - (λ[1] + λ[end])/2 * LinearAlgebra.I
-                    v = MOD.vectorize(LinearAlgebra.Symmetric(Xm))
+                    v = MOD._vectorize(Xm, s)
                     vproj = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
                     dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
                     @test LinearAlgebra.norm(v - vproj) ≈ dist atol=10e-5
                 elseif λ[end] <= 0
                     Xp = X + (λ[1] + λ[end])/2 * LinearAlgebra.I
-                    v = MOD.vectorize(LinearAlgebra.Symmetric(Xp))
+                    v = MOD._vectorize(Xp, s)
                     vproj = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
                     dist = MOD.distance_to_set(MOD.DefaultDistance(), v, s)
                     @test LinearAlgebra.norm(v - vproj) ≈ dist atol=10e-5

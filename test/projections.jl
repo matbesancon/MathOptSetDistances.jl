@@ -91,6 +91,26 @@ end
     @test MOD.projection_on_set(DD, b, MOI.Scaled(set)) ≈ b
 end
 
+@testset "Hermitian in PSD projection" begin
+    a = [1, (1 - im) / √2, 1]
+    b = [1, 1 - 1im, 1]
+    set = MOI.PositiveSemidefiniteConeTriangle(2)
+    @test MOD.projection_on_set(DD, a, set) ≈ a
+    @test MOD.projection_on_set(DD, b, set) ≈ 1.20710678 * a
+    @test MOD.projection_on_set(DD, a, MOI.Scaled(set)) ≈ a
+    @test MOD.projection_on_set(DD, b, MOI.Scaled(set)) ≈ b
+end
+
+@testset "Hermitian PSD projection" begin
+    a = [1, 1.0 / √2, 1, -1 / √2]
+    b = [1, 1, 1, -1]
+    set = MOI.HermitianPositiveSemidefiniteConeTriangle(2)
+    @test MOD.projection_on_set(DD, a, set) ≈ a
+    @test MOD.projection_on_set(DD, b, set) ≈ 1.20710678 * a
+    @test MOD.projection_on_set(DD, a, MOI.Scaled(set)) ≈ a
+    @test MOD.projection_on_set(DD, b, MOI.Scaled(set)) ≈ b
+end
+
 @testset "Exponential Cone Projections" begin
     function det_case_exp_cone(v; dual=false)
         v = dual ? -v : v

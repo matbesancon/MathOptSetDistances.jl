@@ -123,13 +123,21 @@ end
 """
     projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.PositiveSemidefiniteConeTriangle) where {T}
 
-Projection of vector `v` on positive semidefinite cone i.e. `K = S^n⨥`
+Projection of vector `v` on symmetric positive semidefinite cone i.e. `K = S^n⨥`
+
+    projection_on_set(::DefaultDistance, v::AbstractVector{T}, ::MOI.HermitianPositiveSemidefiniteConeTriangle) where {T}
+
+Projection of vector `v` on hermitian positive semidefinite cone.
 """
-function projection_on_set(::DefaultDistance, v::AbstractVector{T}, set::MOI.PositiveSemidefiniteConeTriangle) where {T}
+function projection_on_set(
+    ::DefaultDistance,
+    v::AbstractVector{T},
+    set::Union{MOI.PositiveSemidefiniteConeTriangle,MOI.HermitianPositiveSemidefiniteConeTriangle},
+) where {T}
     X = reshape_vector(v, set)
     λ, U = LinearAlgebra.eigen(X)
     D = LinearAlgebra.Diagonal(max.(λ, 0))
-    return vectorize(LinearAlgebra.Symmetric(U * D * U'))
+    return _vectorize(U * D * U', set)
 end
 
 """
@@ -175,18 +183,42 @@ dot(reshape_vector(x, dim), reshape_vector(y, dim)) != dot(x, y).
 function reshape_vector(x, set::MOI.AbstractSymmetricMatrixSetTriangle)
     dim = MOI.side_dimension(set)
     X = zeros(eltype(x), dim, dim)
-    idx = 1
-    for i in 1:dim
-        for j in 1:i
-            X[j,i] = X[i,j] = x[idx]
+    idx = 0
+    for j in 1:dim
+        for i in 1:j
             idx += 1
+            X[i, j] = x[idx]
+            X[j, i] = conj(x[idx])
         end
     end
-    return LinearAlgebra.Symmetric(X)
+    return _sym_wrap(X)
+end
+
+_sym_wrap(X::AbstractMatrix{<:Real}) = LinearAlgebra.Symmetric(X)
+_sym_wrap(X::AbstractMatrix{<:Complex}) = LinearAlgebra.Hermitian(X)
+
+function reshape_vector(x, set::MOI.HermitianPositiveSemidefiniteConeTriangle)
+    dim = MOI.side_dimension(set)
+    X = zeros(Complex{eltype(x)}, dim, dim)
+    real_idx = 0
+    imag_idx = MOI.dimension(MOI.PositiveSemidefiniteConeTriangle(dim))
+    for j in 1:dim
+        for i in 1:j
+            real_idx += 1
+            if i == j
+                X[i, j] = x[real_idx]
+            else
+                imag_idx += 1
+                X[i, j] = complex(x[real_idx], x[imag_idx])
+                X[j, i] = conj(X[i, j])
+            end
+        end
+    end
+    return LinearAlgebra.Hermitian(X)
 end
 
 """
-    vectorize(X::LinearAlgebra.Symmetric)
+    _vectorize(X::AbstractMatrix, set::MOI.AbstractSymmetricMatrixSetTriangle)
 
 Returns a vectorized representation of a symmetric matrix `X`.
 `vec(X) = (X11, X12, X22, X13, X23, X33, ..., Xkk)`
@@ -198,7 +230,7 @@ the sum of the pairwise product of the diagonal entries plus twice the sum of
 the pairwise product of the upper diagonal entries; see [p. 634, 1].
 Therefore, this transformation breaks inner products:
 ```julia
-dot(vectorize(X), vectorize(Y)) != dot(X, Y).
+dot(_vectorize(X, set), _vectorize(Y, set)) != dot(X, Y).
 ```
 
 ### References
@@ -206,8 +238,26 @@ dot(vectorize(X), vectorize(Y)) != dot(X, Y).
 [1] Boyd, S. and Vandenberghe, L.. *Convex optimization*. Cambridge university press, 2004.
 
 """
-function vectorize(X::LinearAlgebra.Symmetric)
-    return parent(X)[LinearAlgebra.triu(trues(size(X)))]
+function _vectorize(X::AbstractMatrix, ::MOI.AbstractSymmetricMatrixSetTriangle)
+    return X[LinearAlgebra.triu(trues(size(X)))]
+end
+
+function _vectorize(X::AbstractMatrix, ::MOI.HermitianPositiveSemidefiniteConeTriangle)
+    d = LinearAlgebra.checksquare(X)
+    v = zeros(d^2)
+    real_idx = 0
+    imag_idx = MOI.dimension(MOI.PositiveSemidefiniteConeTriangle(d))
+    for j in 1:d
+        for i in 1:j
+            real_idx += 1
+            v[real_idx] = real(X[i, j])
+            if i != j
+                imag_idx += 1
+                v[imag_idx] = imag(X[i, j])
+            end
+        end
+    end
+    return v
 end
 
 """
@@ -757,7 +807,7 @@ function projection_gradient_on_set(::DefaultDistance, v::AbstractVector{T}, set
                 end
             end
         end
-        @inbounds D[idx, :] = vectorize(LinearAlgebra.Symmetric(U * B * U'))
+        @inbounds D[idx, :] = _vectorize(U * B * U', set)
         # reset eigenvector
         @inbounds y[idx] = 0
     end

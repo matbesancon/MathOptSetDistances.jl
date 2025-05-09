@@ -89,7 +89,7 @@ end
             for _ in 1:Ntrials
                 L = 3 * tril(rand(n, n))
                 M = L * L'
-                v = MOD.vectorize(LinearAlgebra.Symmetric(M))
+                v = MOD._vectorize(M, s)
                 @testset "Positive definite" begin
                     dΠ = MOD.projection_gradient_on_set(MOD.DefaultDistance(), v, s)
                     grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
@@ -228,7 +228,7 @@ end
             Λ = Diagonal([-f, f])
             Λp = Diagonal([0, f])
             @test A ≈ Q * Λ * Qi
-            v = MOD.vectorize(LinearAlgebra.Symmetric(A))
+            v = MOD._vectorize(A, s)
             Πv = MOD.projection_on_set(MOD.DefaultDistance(), v, s)
             Π = MOD.reshape_vector(Πv, s)
             @test Π ≈ Q * Λp * Qi
@@ -240,10 +240,10 @@ end
             # directional derivative
             for _ in 1:Ntrials
                 Xd = randn(2,2)
-                xd = MOD.vectorize(LinearAlgebra.Symmetric(Xd))
+                xd = MOD._vectorize(Xd, s)
                 QBX = Q * (B .* (Q' * Xd * Q)) * Q'
-                @test DΠ * xd ≈ MOD.vectorize(LinearAlgebra.Symmetric(QBX))
-                @test scaled_DΠ * D * xd ≈ D * MOD.vectorize(LinearAlgebra.Symmetric(QBX))
+                @test DΠ * xd ≈ MOD._vectorize(QBX, s)
+                @test scaled_DΠ * D * xd ≈ D * MOD._vectorize(QBX, s)
             end
             grad_fdm1 = FiniteDifferences.jacobian(ffdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
             grad_fdm2 = FiniteDifferences.jacobian(bfdm, x -> MOD.projection_on_set(MOD.DefaultDistance(), x, s), v)[1]'
