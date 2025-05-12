@@ -117,7 +117,7 @@ function CRC.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistan
         return (0 * v, 0 * Δv)
     end
     λp = max.(0, λ)
-    vproj = vectorize(LinearAlgebra.Symmetric(U * Diagonal(λp) * U'))
+    vproj = _vectorize(U * Diagonal(λp) * U', set)
     k = count(λi < 1e-4 for λi in λ)
     # TODO avoid full matrix materialize
     dim = MOI.side_dimension(set)
@@ -132,7 +132,7 @@ function CRC.frule((_, _, Δv, _), ::typeof(projection_on_set), d::DefaultDistan
         end
     end
     M = U * (B .* (U' * reshape_vector(Δv, set) * U)) * U'
-    Δvproj = vectorize(LinearAlgebra.Symmetric(M))
+    Δvproj = _vectorize(M, set)
     return (vproj, Δvproj)
 end
 
