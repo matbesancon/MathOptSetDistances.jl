@@ -12,7 +12,7 @@ MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-BlockDiagonals = "0.1"
+BlockDiagonals = "0.2"
 ChainRulesCore = "1"
 FillArrays = "1"
 MathOptInterface = "1"
