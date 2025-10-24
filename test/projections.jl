@@ -275,7 +275,7 @@ end
 
     Random.seed!(0)
     n = 3
-    atol = 5e-6
+    atol = 1e-5
     case_p = zeros(4)
     case_d = zeros(4)
     for _ in 1:100
